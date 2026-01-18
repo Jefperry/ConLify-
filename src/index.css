@@ -1,0 +1,158 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ConLify Design System - Clean & Professional Banking Theme
+   All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    /* Background & Foreground */
+    --background: 210 20% 98%;
+    --foreground: 220 20% 10%;
+
+    /* Cards & Popovers */
+    --card: 0 0% 100%;
+    --card-foreground: 220 20% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 20% 10%;
+
+    /* Primary - Trust Green (Confirm/Success) */
+    --primary: 142 50% 35%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Secondary - Neutral Slate */
+    --secondary: 220 14% 96%;
+    --secondary-foreground: 220 20% 20%;
+
+    /* Muted */
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 10% 45%;
+
+    /* Accent - Soft Blue */
+    --accent: 217 91% 60%;
+    --accent-foreground: 0 0% 100%;
+
+    /* Destructive - Warning Red (Locked/Rejected) */
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Warning - Amber/Orange (Pending/Late) */
+    --warning: 40 96% 50%;
+    --warning-foreground: 0 0% 10%;
+
+    /* Success - Verified Green */
+    --success: 142 72% 35%;
+    --success-foreground: 0 0% 100%;
+
+    /* Borders & Inputs */
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 142 50% 35%;
+
+    --radius: 0.75rem;
+
+    /* Sidebar */
+    --sidebar-background: 220 20% 97%;
+    --sidebar-foreground: 220 20% 25%;
+    --sidebar-primary: 142 50% 35%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 14% 93%;
+    --sidebar-accent-foreground: 220 20% 20%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 142 50% 35%;
+
+    /* Chart Colors */
+    --chart-1: 142 50% 35%;
+    --chart-2: 217 91% 60%;
+    --chart-3: 40 96% 50%;
+    --chart-4: 0 72% 51%;
+    --chart-5: 220 14% 70%;
+  }
+
+  .dark {
+    /* Background & Foreground */
+    --background: 222 47% 8%;
+    --foreground: 210 20% 98%;
+
+    /* Cards & Popovers */
+    --card: 222 47% 11%;
+    --card-foreground: 210 20% 98%;
+    --popover: 222 47% 11%;
+    --popover-foreground: 210 20% 98%;
+
+    /* Primary - Trust Green */
+    --primary: 142 60% 45%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Secondary */
+    --secondary: 222 30% 18%;
+    --secondary-foreground: 210 20% 90%;
+
+    /* Muted */
+    --muted: 222 30% 18%;
+    --muted-foreground: 220 10% 60%;
+
+    /* Accent */
+    --accent: 217 91% 55%;
+    --accent-foreground: 0 0% 100%;
+
+    /* Destructive */
+    --destructive: 0 72% 45%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Warning */
+    --warning: 40 96% 55%;
+    --warning-foreground: 0 0% 10%;
+
+    /* Success */
+    --success: 142 72% 40%;
+    --success-foreground: 0 0% 100%;
+
+    /* Borders & Inputs */
+    --border: 222 30% 20%;
+    --input: 222 30% 20%;
+    --ring: 142 60% 45%;
+
+    /* Sidebar */
+    --sidebar-background: 222 47% 10%;
+    --sidebar-foreground: 210 20% 90%;
+    --sidebar-primary: 142 60% 45%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 222 30% 16%;
+    --sidebar-accent-foreground: 210 20% 90%;
+    --sidebar-border: 222 30% 20%;
+    --sidebar-ring: 142 60% 45%;
+
+    /* Chart Colors */
+    --chart-1: 142 60% 45%;
+    --chart-2: 217 91% 55%;
+    --chart-3: 40 96% 55%;
+    --chart-4: 0 72% 45%;
+    --chart-5: 220 14% 50%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-semibold tracking-tight;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
