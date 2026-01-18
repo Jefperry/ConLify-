@@ -1,15 +1,22 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft, Users, Copy, Check, Calendar, DollarSign, 
   Crown, AlertCircle, CheckCircle, Clock, XCircle, Loader2,
-  UserPlus, Settings, Shield, User
+  UserPlus, Settings, Shield, User, Play, Timer, Filter
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Progress } from '@/components/ui/progress';
+import { format, differenceInDays, differenceInHours, addDays, addWeeks, addMonths } from 'date-fns';
+import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -35,8 +42,59 @@ export default function GroupDetail() {
   const [activeCycle, setActiveCycle] = useState<PaymentCycle | null>(null);
   const [paymentLogs, setPaymentLogs] = useState<PaymentLogWithMember[]>([]);
   const [copied, setCopied] = useState(false);
+  const [cycleDialogOpen, setCycleDialogOpen] = useState(false);
+  const [selectedDueDate, setSelectedDueDate] = useState<Date | undefined>(undefined);
+  const [startingCycle, setStartingCycle] = useState(false);
+  const [paymentFilter, setPaymentFilter] = useState<'all' | PaymentStatus>('all');
+  const [verifyingId, setVerifyingId] = useState<string | null>(null);
+  const [rejectingId, setRejectingId] = useState<string | null>(null);
 
   const isPresident = group?.president_id === user?.id;
+
+  // Filter payment logs based on selected filter
+  const filteredPaymentLogs = useMemo(() => {
+    if (paymentFilter === 'all') return paymentLogs;
+    return paymentLogs.filter(log => log.status === paymentFilter);
+  }, [paymentLogs, paymentFilter]);
+
+  // Calculate default due date based on group frequency
+  const getDefaultDueDate = () => {
+    const today = new Date();
+    if (group?.frequency === 'weekly') {
+      return addWeeks(today, 1);
+    } else {
+      return addMonths(today, 1);
+    }
+  };
+
+  // Calculate cycle countdown
+  const cycleCountdown = useMemo(() => {
+    if (!activeCycle) return null;
+    const dueDate = new Date(activeCycle.due_date);
+    const now = new Date();
+    const daysLeft = differenceInDays(dueDate, now);
+    const hoursLeft = differenceInHours(dueDate, now) % 24;
+    
+    if (daysLeft < 0) {
+      return { text: 'Overdue', isOverdue: true, daysLeft: Math.abs(daysLeft) };
+    }
+    return { 
+      text: daysLeft === 0 ? `${hoursLeft}h left` : `${daysLeft}d ${hoursLeft}h left`,
+      isOverdue: false,
+      daysLeft 
+    };
+  }, [activeCycle]);
+
+  // Calculate payment progress
+  const paymentProgress = useMemo(() => {
+    if (!paymentLogs.length) return { verified: 0, pending: 0, unpaid: 0, total: 0, percentage: 0 };
+    const verified = paymentLogs.filter(l => l.status === 'verified').length;
+    const pending = paymentLogs.filter(l => l.status === 'pending').length;
+    const unpaid = paymentLogs.filter(l => l.status === 'unpaid').length;
+    const total = paymentLogs.length;
+    const percentage = Math.round((verified / total) * 100);
+    return { verified, pending, unpaid, total, percentage };
+  }, [paymentLogs]);
 
   useEffect(() => {
     if (id) {
@@ -47,48 +105,31 @@ export default function GroupDetail() {
   const fetchGroupData = async () => {
     try {
       // Fetch group
-      console.log('Fetching group with id:', id);
       const { data: groupData, error: groupError } = await supabase
         .from('groups')
         .select('*')
         .eq('id', id)
         .single();
 
-      if (groupError) {
-        console.error('Error fetching group:', groupError);
-        throw groupError;
-      }
-      console.log('Group fetched successfully:', groupData);
+      if (groupError) throw groupError;
       setGroup(groupData);
 
       // Fetch members
-      console.log('Fetching members for group:', id);
       const { data: membersData, error: membersError } = await supabase
         .from('group_members')
         .select('*')
         .eq('group_id', id)
         .order('queue_position');
 
-      if (membersError) {
-        console.error('Error fetching members:', membersError);
-        throw membersError;
-      }
-      console.log('Members fetched:', membersData);
+      if (membersError) throw membersError;
 
       // Fetch profiles for all members
       if (membersData && membersData.length > 0) {
         const userIds = membersData.map(m => m.user_id);
-        console.log('Fetching profiles for users:', userIds);
-        
-        const { data: profilesData, error: profilesError } = await supabase
+        const { data: profilesData } = await supabase
           .from('profiles')
           .select('*')
           .in('id', userIds);
-
-        if (profilesError) {
-          console.error('Error fetching profiles:', profilesError);
-        }
-        console.log('Profiles fetched:', profilesData);
 
         // Combine members with their profiles
         const membersWithProfiles = membersData.map(member => ({
@@ -102,32 +143,21 @@ export default function GroupDetail() {
       }
 
       // Fetch active cycle
-      console.log('Fetching active cycle for group:', id);
-      const { data: cycleData, error: cycleError } = await supabase
+      const { data: cycleData } = await supabase
         .from('payment_cycles')
         .select('*')
         .eq('group_id', id)
         .eq('status', 'active')
         .maybeSingle();
 
-      if (cycleError) {
-        console.error('Error fetching cycle:', cycleError);
-      }
-      console.log('Cycle data:', cycleData);
       setActiveCycle(cycleData);
 
       // Fetch payment logs for active cycle
       if (cycleData) {
-        console.log('Fetching payment logs for cycle:', cycleData.id);
-        const { data: logsData, error: logsError } = await supabase
+        const { data: logsData } = await supabase
           .from('payment_logs')
           .select('*')
           .eq('cycle_id', cycleData.id);
-
-        if (logsError) {
-          console.error('Error fetching payment logs:', logsError);
-        }
-        console.log('Payment logs:', logsData);
 
         // Fetch member data for each log
         if (logsData && logsData.length > 0) {
@@ -156,9 +186,10 @@ export default function GroupDetail() {
         } else {
           setPaymentLogs([]);
         }
+      } else {
+        setPaymentLogs([]);
       }
     } catch (error) {
-      console.error('Error fetching group:', error);
       toast({
         title: "Error",
         description: "Failed to load group data",
@@ -225,27 +256,44 @@ export default function GroupDetail() {
     );
   };
 
-  const verifyPayment = async (logId: string) => {
+  const verifyPayment = async (logId: string, memberId: string) => {
+    setVerifyingId(logId);
     try {
-      const { error } = await supabase
+      // Update payment log status
+      const { error: logError } = await supabase
         .from('payment_logs')
         .update({ status: 'verified', verified_at: new Date().toISOString() })
         .eq('id', logId);
 
-      if (error) throw error;
+      if (logError) throw logError;
+
+      // Reset missed_payment_count to 0 for this member
+      const { error: memberError } = await supabase
+        .from('group_members')
+        .update({ missed_payment_count: 0 })
+        .eq('id', memberId);
+
+      if (memberError) throw memberError;
       
-      toast({ title: "Payment verified!" });
+      toast({ 
+        title: "Payment verified!",
+        description: "Member's missed payment count has been reset."
+      });
       fetchGroupData();
-    } catch (error: any) {
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Failed to verify payment";
       toast({
         title: "Error",
-        description: error.message,
+        description: errorMessage,
         variant: "destructive",
       });
+    } finally {
+      setVerifyingId(null);
     }
   };
 
   const rejectPayment = async (logId: string) => {
+    setRejectingId(logId);
     try {
       const { error } = await supabase
         .from('payment_logs')
@@ -254,15 +302,97 @@ export default function GroupDetail() {
 
       if (error) throw error;
       
-      toast({ title: "Payment rejected" });
+      toast({ 
+        title: "Payment rejected",
+        description: "The member will need to re-submit their payment."
+      });
       fetchGroupData();
-    } catch (error: any) {
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Failed to reject payment";
       toast({
         title: "Error",
-        description: error.message,
+        description: errorMessage,
         variant: "destructive",
       });
+    } finally {
+      setRejectingId(null);
     }
+  };
+
+  const startNewCycle = async () => {
+    if (!group || !selectedDueDate) {
+      toast({
+        title: "Error",
+        description: "Please select a due date",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setStartingCycle(true);
+    try {
+      // 1. Create the new payment cycle
+      const { data: cycleData, error: cycleError } = await supabase
+        .from('payment_cycles')
+        .insert({
+          group_id: group.id,
+          due_date: selectedDueDate.toISOString(),
+          status: 'active'
+        })
+        .select()
+        .single();
+
+      if (cycleError) throw cycleError;
+
+      // 2. Get all active members
+      const activeMembers = members.filter(m => m.status === 'active');
+      
+      if (activeMembers.length === 0) {
+        toast({
+          title: "Warning",
+          description: "No active members to create payment logs for",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // 3. Create payment logs for all active members with status 'unpaid'
+      const paymentLogsToCreate = activeMembers.map(member => ({
+        cycle_id: cycleData.id,
+        member_id: member.id,
+        status: 'unpaid' as PaymentStatus
+      }));
+
+      const { error: logsError } = await supabase
+        .from('payment_logs')
+        .insert(paymentLogsToCreate);
+
+      if (logsError) throw logsError;
+
+      toast({ 
+        title: "Cycle Started!",
+        description: `Payment cycle created with ${activeMembers.length} members. Due: ${format(selectedDueDate, 'PPP')}`
+      });
+      
+      setCycleDialogOpen(false);
+      setSelectedDueDate(undefined);
+      fetchGroupData();
+    } catch (error: any) {
+      console.error('Error starting cycle:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to start cycle",
+        variant: "destructive",
+      });
+    } finally {
+      setStartingCycle(false);
+    }
+  };
+
+  // Set default due date when dialog opens
+  const handleOpenCycleDialog = () => {
+    setSelectedDueDate(getDefaultDueDate());
+    setCycleDialogOpen(true);
   };
 
   if (loading) {
@@ -375,26 +505,112 @@ export default function GroupDetail() {
                     <DollarSign className="h-5 w-5 text-primary" />
                   </div>
                   <div>
-                    <p className="text-2xl font-bold">${(members.length * group.contribution_amount).toFixed(2)}</p>
-                    <p className="text-sm text-muted-foreground">Per Cycle</p>
+                    <p className="text-2xl font-bold">${(members.filter(m => m.status === 'active').length * group.contribution_amount).toFixed(2)}</p>
+                    <p className="text-sm text-muted-foreground">Expected Per Cycle</p>
                   </div>
                 </div>
               </CardContent>
             </Card>
-            <Card>
+            <Card className={activeCycle && cycleCountdown?.isOverdue ? 'border-destructive' : ''}>
               <CardContent className="pt-6">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-primary/10">
-                    <Calendar className="h-5 w-5 text-primary" />
+                  <div className={cn(
+                    "p-2 rounded-lg",
+                    activeCycle 
+                      ? cycleCountdown?.isOverdue 
+                        ? "bg-destructive/10" 
+                        : "bg-primary/10"
+                      : "bg-muted"
+                  )}>
+                    <Timer className={cn(
+                      "h-5 w-5",
+                      activeCycle 
+                        ? cycleCountdown?.isOverdue 
+                          ? "text-destructive" 
+                          : "text-primary"
+                        : "text-muted-foreground"
+                    )} />
                   </div>
                   <div>
-                    <p className="text-2xl font-bold">{activeCycle ? 'Active' : 'None'}</p>
-                    <p className="text-sm text-muted-foreground">Current Cycle</p>
+                    {activeCycle ? (
+                      <>
+                        <p className={cn(
+                          "text-2xl font-bold",
+                          cycleCountdown?.isOverdue && "text-destructive"
+                        )}>
+                          {cycleCountdown?.text}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          Due {format(new Date(activeCycle.due_date), 'MMM d')}
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-2xl font-bold text-muted-foreground">No Cycle</p>
+                        <p className="text-sm text-muted-foreground">Start a new cycle</p>
+                      </>
+                    )}
                   </div>
                 </div>
               </CardContent>
             </Card>
           </div>
+
+          {/* Payment Progress Bar - Only show when cycle is active */}
+          {activeCycle && paymentLogs.length > 0 && (
+            <Card>
+              <CardContent className="pt-6">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle className="h-4 w-4 text-primary" />
+                      <span className="font-medium">Payment Progress</span>
+                    </div>
+                    <span className="text-sm text-muted-foreground">
+                      {paymentProgress.verified} of {paymentProgress.total} verified
+                    </span>
+                  </div>
+                  <Progress value={paymentProgress.percentage} className="h-2" />
+                  <div className="flex gap-4 text-sm">
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-2 h-2 rounded-full bg-primary" />
+                      <span className="text-muted-foreground">{paymentProgress.verified} Verified</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-2 h-2 rounded-full bg-yellow-500" />
+                      <span className="text-muted-foreground">{paymentProgress.pending} Pending</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-2 h-2 rounded-full bg-muted-foreground" />
+                      <span className="text-muted-foreground">{paymentProgress.unpaid} Unpaid</span>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* View Invoice Card - Only show for non-president members when cycle is active */}
+          {activeCycle && !isPresident && (
+            <Card className="bg-primary/5 border-primary/20">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium">Payment Due</p>
+                    <p className="text-sm text-muted-foreground">
+                      ${group.contribution_amount} by {format(new Date(activeCycle.due_date), 'MMM d, yyyy')}
+                    </p>
+                  </div>
+                  <Button asChild>
+                    <Link to={`/groups/${id}/invoice/${activeCycle.id}`}>
+                      <DollarSign className="mr-2 h-4 w-4" />
+                      View Invoice
+                    </Link>
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Tabs for Members and Payments */}
           <Tabs defaultValue="members" className="w-full">
@@ -448,7 +664,7 @@ export default function GroupDetail() {
                   <CardTitle>Payment Status</CardTitle>
                   <CardDescription>
                     {activeCycle 
-                      ? `Current cycle due: ${new Date(activeCycle.due_date).toLocaleDateString()}`
+                      ? `Current cycle due: ${format(new Date(activeCycle.due_date), 'PPP')}`
                       : 'No active payment cycle'
                     }
                   </CardDescription>
@@ -459,54 +675,249 @@ export default function GroupDetail() {
                       <Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                       <p className="text-muted-foreground mb-4">No active payment cycle</p>
                       {isPresident && (
-                        <Button>
-                          <Calendar className="mr-2 h-4 w-4" />
-                          Start New Cycle
-                        </Button>
+                        <Dialog open={cycleDialogOpen} onOpenChange={setCycleDialogOpen}>
+                          <DialogTrigger asChild>
+                            <Button onClick={handleOpenCycleDialog}>
+                              <Play className="mr-2 h-4 w-4" />
+                              Start New Cycle
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="sm:max-w-[425px]">
+                            <DialogHeader>
+                              <DialogTitle>Start New Payment Cycle</DialogTitle>
+                              <DialogDescription>
+                                Create a new payment cycle for {group.name}. All active members will receive a payment request.
+                              </DialogDescription>
+                            </DialogHeader>
+                            <div className="py-4">
+                              <div className="space-y-4">
+                                <div>
+                                  <p className="text-sm font-medium mb-2">Contribution Amount</p>
+                                  <p className="text-2xl font-bold text-primary">${group.contribution_amount}</p>
+                                </div>
+                                <div>
+                                  <p className="text-sm font-medium mb-2">Active Members</p>
+                                  <p className="text-lg">{members.filter(m => m.status === 'active').length} members</p>
+                                </div>
+                                <div>
+                                  <p className="text-sm font-medium mb-2">Due Date</p>
+                                  <Popover>
+                                    <PopoverTrigger asChild>
+                                      <Button
+                                        variant="outline"
+                                        className={cn(
+                                          "w-full justify-start text-left font-normal",
+                                          !selectedDueDate && "text-muted-foreground"
+                                        )}
+                                      >
+                                        <Calendar className="mr-2 h-4 w-4" />
+                                        {selectedDueDate ? format(selectedDueDate, 'PPP') : 'Select due date'}
+                                      </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0" align="start">
+                                      <CalendarComponent
+                                        mode="single"
+                                        selected={selectedDueDate}
+                                        onSelect={setSelectedDueDate}
+                                        disabled={(date) => date < new Date()}
+                                        initialFocus
+                                      />
+                                    </PopoverContent>
+                                  </Popover>
+                                </div>
+                              </div>
+                            </div>
+                            <DialogFooter>
+                              <Button variant="outline" onClick={() => setCycleDialogOpen(false)}>
+                                Cancel
+                              </Button>
+                              <Button onClick={startNewCycle} disabled={startingCycle || !selectedDueDate}>
+                                {startingCycle ? (
+                                  <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    Starting...
+                                  </>
+                                ) : (
+                                  <>
+                                    <Play className="mr-2 h-4 w-4" />
+                                    Start Cycle
+                                  </>
+                                )}
+                              </Button>
+                            </DialogFooter>
+                          </DialogContent>
+                        </Dialog>
                       )}
                     </div>
                   ) : (
-                    <div className="divide-y divide-border">
-                      {paymentLogs.map((log) => (
-                        <div key={log.id} className="py-4 flex items-center justify-between">
-                          <div className="flex items-center gap-4">
-                            <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-sm font-medium">
-                              {log.member?.queue_position}
-                            </div>
-                            <div>
-                              <p className="font-medium">
-                                {log.member?.profile?.name || log.member?.profile?.email}
-                              </p>
-                              <p className="text-sm text-muted-foreground">
-                                ${group.contribution_amount}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-3">
-                            {getPaymentStatusBadge(log.status)}
-                            {isPresident && log.status === 'pending' && (
-                              <div className="flex gap-2">
-                                <Button 
-                                  size="sm" 
-                                  variant="outline"
-                                  className="text-primary"
-                                  onClick={() => verifyPayment(log.id)}
-                                >
-                                  <CheckCircle className="h-4 w-4" />
-                                </Button>
-                                <Button 
-                                  size="sm" 
-                                  variant="outline"
-                                  className="text-destructive"
-                                  onClick={() => rejectPayment(log.id)}
-                                >
-                                  <XCircle className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            )}
-                          </div>
+                    <div className="space-y-4">
+                      {/* Filter Buttons */}
+                      {isPresident && paymentLogs.length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            size="sm"
+                            variant={paymentFilter === 'all' ? 'default' : 'outline'}
+                            onClick={() => setPaymentFilter('all')}
+                          >
+                            All ({paymentLogs.length})
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant={paymentFilter === 'unpaid' ? 'default' : 'outline'}
+                            onClick={() => setPaymentFilter('unpaid')}
+                            className={paymentFilter !== 'unpaid' ? 'text-muted-foreground' : ''}
+                          >
+                            <Clock className="mr-1 h-3 w-3" />
+                            Unpaid ({paymentLogs.filter(l => l.status === 'unpaid').length})
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant={paymentFilter === 'pending' ? 'default' : 'outline'}
+                            onClick={() => setPaymentFilter('pending')}
+                            className={paymentFilter !== 'pending' ? 'text-yellow-600' : ''}
+                          >
+                            <Clock className="mr-1 h-3 w-3" />
+                            Pending ({paymentLogs.filter(l => l.status === 'pending').length})
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant={paymentFilter === 'verified' ? 'default' : 'outline'}
+                            onClick={() => setPaymentFilter('verified')}
+                            className={paymentFilter !== 'verified' ? 'text-green-600' : ''}
+                          >
+                            <CheckCircle className="mr-1 h-3 w-3" />
+                            Verified ({paymentLogs.filter(l => l.status === 'verified').length})
+                          </Button>
                         </div>
-                      ))}
+                      )}
+
+                      {/* Payment List */}
+                      <div className="divide-y divide-border">
+                        {filteredPaymentLogs.length === 0 ? (
+                          <div className="text-center py-8 text-muted-foreground">
+                            No payments match this filter
+                          </div>
+                        ) : (
+                          filteredPaymentLogs.map((log) => {
+                            // Color-coded background based on status
+                            const bgColor = {
+                              unpaid: 'bg-muted/30',
+                              pending: 'bg-yellow-500/10 border-l-4 border-l-yellow-500',
+                              verified: 'bg-green-500/10 border-l-4 border-l-green-500',
+                              rejected: 'bg-red-500/10 border-l-4 border-l-red-500',
+                            }[log.status];
+
+                            return (
+                              <div key={log.id} className={cn("py-4 px-3 -mx-3 flex items-center justify-between rounded-lg", bgColor)}>
+                                <div className="flex items-center gap-4">
+                                  <div className={cn(
+                                    "w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium",
+                                    log.status === 'verified' ? 'bg-green-500/20 text-green-700' :
+                                    log.status === 'pending' ? 'bg-yellow-500/20 text-yellow-700' :
+                                    log.status === 'rejected' ? 'bg-red-500/20 text-red-700' :
+                                    'bg-muted text-muted-foreground'
+                                  )}>
+                                    {log.member?.queue_position}
+                                  </div>
+                                  <div>
+                                    <p className="font-medium">
+                                      {log.member?.profile?.name || log.member?.profile?.email}
+                                    </p>
+                                    <p className="text-sm text-muted-foreground">
+                                      ${group.contribution_amount}
+                                      {log.marked_at && log.status === 'pending' && (
+                                        <span className="ml-2">• Sent {format(new Date(log.marked_at), 'MMM d, h:mm a')}</span>
+                                      )}
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                  {getPaymentStatusBadge(log.status)}
+                                  {isPresident && log.status === 'pending' && (
+                                    <div className="flex gap-2">
+                                      {/* Verify Button with Confirmation */}
+                                      <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                          <Button 
+                                            size="sm" 
+                                            variant="outline"
+                                            className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                                            disabled={verifyingId === log.id}
+                                          >
+                                            {verifyingId === log.id ? (
+                                              <Loader2 className="h-4 w-4 animate-spin" />
+                                            ) : (
+                                              <CheckCircle className="h-4 w-4" />
+                                            )}
+                                          </Button>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                          <AlertDialogHeader>
+                                            <AlertDialogTitle>Verify Payment</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                              Confirm that you received ${group.contribution_amount} from{' '}
+                                              <strong>{log.member?.profile?.name || log.member?.profile?.email}</strong>?
+                                              This will mark their payment as verified and reset their missed payment count.
+                                            </AlertDialogDescription>
+                                          </AlertDialogHeader>
+                                          <AlertDialogFooter>
+                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                            <AlertDialogAction
+                                              onClick={() => verifyPayment(log.id, log.member?.id || '')}
+                                              className="bg-green-600 hover:bg-green-700"
+                                            >
+                                              <CheckCircle className="mr-2 h-4 w-4" />
+                                              Verify Payment
+                                            </AlertDialogAction>
+                                          </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                      </AlertDialog>
+
+                                      {/* Reject Button with Confirmation */}
+                                      <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                          <Button 
+                                            size="sm" 
+                                            variant="outline"
+                                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                            disabled={rejectingId === log.id}
+                                          >
+                                            {rejectingId === log.id ? (
+                                              <Loader2 className="h-4 w-4 animate-spin" />
+                                            ) : (
+                                              <XCircle className="h-4 w-4" />
+                                            )}
+                                          </Button>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                          <AlertDialogHeader>
+                                            <AlertDialogTitle>Reject Payment</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                              Are you sure you want to reject the payment from{' '}
+                                              <strong>{log.member?.profile?.name || log.member?.profile?.email}</strong>?
+                                              They will need to re-submit their payment.
+                                            </AlertDialogDescription>
+                                          </AlertDialogHeader>
+                                          <AlertDialogFooter>
+                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                            <AlertDialogAction
+                                              onClick={() => rejectPayment(log.id)}
+                                              className="bg-destructive hover:bg-destructive/90"
+                                            >
+                                              <XCircle className="mr-2 h-4 w-4" />
+                                              Reject Payment
+                                            </AlertDialogAction>
+                                          </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                      </AlertDialog>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
                     </div>
                   )}
                 </CardContent>
