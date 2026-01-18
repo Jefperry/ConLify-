@@ -38,10 +38,11 @@ export default function JoinGroup() {
 
     setLoading(true);
     try {
+      // Use ilike for case-insensitive matching
       const { data: group, error } = await supabase
         .from('groups')
         .select('id, name, frequency, contribution_amount')
-        .eq('invite_code', inviteCode.trim().toLowerCase())
+        .ilike('invite_code', inviteCode.trim())
         .maybeSingle();
 
       if (error) throw error;
@@ -111,17 +112,37 @@ export default function JoinGroup() {
       const nextPosition = members && members.length > 0 ? members[0].queue_position + 1 : 1;
 
       // Join the group
-      const { error } = await supabase
+      const { data: memberData, error } = await supabase
         .from('group_members')
         .insert({
           group_id: groupPreview.id,
           user_id: user.id,
           queue_position: nextPosition,
-          status: 'pending',
+          status: 'active',
           role: selectedRole,
-        });
+        })
+        .select()
+        .single();
 
       if (error) throw error;
+
+      // Check if there's an active cycle and create a payment log for the new member
+      const { data: activeCycle } = await supabase
+        .from('payment_cycles')
+        .select('id')
+        .eq('group_id', groupPreview.id)
+        .eq('status', 'active')
+        .maybeSingle();
+
+      if (activeCycle && memberData) {
+        await supabase
+          .from('payment_logs')
+          .insert({
+            cycle_id: activeCycle.id,
+            member_id: memberData.id,
+            status: 'unpaid',
+          });
+      }
 
       toast({
         title: "Joined successfully!",
