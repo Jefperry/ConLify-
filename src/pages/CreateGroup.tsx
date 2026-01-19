@@ -10,12 +10,24 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { GroupFrequency, MemberRole } from '@/types/database';
+import { 
+  validateSchema, 
+  SCHEMAS, 
+  checkRateLimit, 
+  RATE_LIMITS, 
+  getRateLimitIdentifier,
+  RateLimitError,
+  ValidationError,
+  sanitizeString,
+  sanitizeNumber
+} from '@/lib/security';
 
 export default function CreateGroup() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [formData, setFormData] = useState({
     name: '',
     frequency: 'monthly' as GroupFrequency,
@@ -25,6 +37,7 @@ export default function CreateGroup() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setFieldErrors({});
     
     if (!user) {
       toast({
@@ -35,28 +48,34 @@ export default function CreateGroup() {
       return;
     }
 
-    if (!formData.name || !formData.contributionAmount) {
-      toast({
-        title: "Missing fields",
-        description: "Please fill in all required fields",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const amount = parseFloat(formData.contributionAmount);
-    if (isNaN(amount) || amount <= 0) {
-      toast({
-        title: "Invalid amount",
-        description: "Please enter a valid contribution amount",
-        variant: "destructive",
-      });
-      return;
-    }
-
     setLoading(true);
 
     try {
+      // Rate limiting check
+      const identifier = getRateLimitIdentifier(user.id);
+      const { allowed, retryAfterMs } = checkRateLimit(identifier, RATE_LIMITS.createGroup);
+      
+      if (!allowed) {
+        throw new RateLimitError(retryAfterMs!);
+      }
+
+      // Validate and sanitize input
+      const validation = validateSchema({
+        name: formData.name,
+        contributionAmount: parseFloat(formData.contributionAmount) || 0,
+        frequency: formData.frequency,
+      }, SCHEMAS.createGroup);
+      
+      if (!validation.valid) {
+        throw new ValidationError(validation.errors);
+      }
+
+      const sanitizedData = validation.sanitized as { 
+        name: string; 
+        contributionAmount: number; 
+        frequency: string 
+      };
+
       // Debug: Log user info
       console.log('Creating group with user:', {
         userId: user.id,
@@ -80,10 +99,10 @@ export default function CreateGroup() {
       const { data: group, error: groupError } = await supabase
         .from('groups')
         .insert({
-          name: formData.name,
+          name: sanitizedData.name,
           president_id: user.id,
-          frequency: formData.frequency,
-          contribution_amount: amount,
+          frequency: sanitizedData.frequency as GroupFrequency,
+          contribution_amount: sanitizedData.contributionAmount,
           president_email: user.email!,
         })
         .select()
@@ -114,17 +133,40 @@ export default function CreateGroup() {
 
       toast({
         title: "Group created!",
-        description: `${formData.name} has been created successfully.`,
+        description: `${sanitizedData.name} has been created successfully.`,
       });
 
       navigate(`/groups/${group.id}`);
     } catch (error: any) {
-      console.error('Error creating group:', error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to create group",
-        variant: "destructive",
-      });
+      if (error instanceof RateLimitError) {
+        toast({
+          title: "Rate limited",
+          description: error.message,
+          variant: "destructive",
+        });
+      } else if (error instanceof ValidationError) {
+        // Map errors to fields for display
+        const errors: Record<string, string> = {};
+        error.fieldErrors.forEach(err => {
+          const errLower = err.toLowerCase();
+          if (errLower.includes('name')) errors.name = err;
+          if (errLower.includes('amount') || errLower.includes('contribution')) errors.contributionAmount = err;
+          if (errLower.includes('frequency')) errors.frequency = err;
+        });
+        setFieldErrors(errors);
+        toast({
+          title: "Validation error",
+          description: "Please fix the errors below",
+          variant: "destructive",
+        });
+      } else {
+        console.error('Error creating group:', error);
+        toast({
+          title: "Error",
+          description: error.message || "Failed to create group",
+          variant: "destructive",
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -166,7 +208,13 @@ export default function CreateGroup() {
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   disabled={loading}
+                  maxLength={100}
+                  className={fieldErrors.name ? 'border-destructive' : ''}
+                  aria-invalid={!!fieldErrors.name}
                 />
+                {fieldErrors.name && (
+                  <p className="text-sm text-destructive">{fieldErrors.name}</p>
+                )}
               </div>
 
               {/* Contribution Frequency */}

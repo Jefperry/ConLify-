@@ -46,6 +46,7 @@ export default function GroupDetail() {
   const [paymentLogs, setPaymentLogs] = useState<PaymentLogWithMember[]>([]);
   const [copied, setCopied] = useState(false);
   const [cycleDialogOpen, setCycleDialogOpen] = useState(false);
+  const [selectedStartDate, setSelectedStartDate] = useState<Date | undefined>(undefined);
   const [selectedDueDate, setSelectedDueDate] = useState<Date | undefined>(undefined);
   const [startingCycle, setStartingCycle] = useState(false);
   const [paymentFilter, setPaymentFilter] = useState<'all' | PaymentStatus>('all');
@@ -76,17 +77,34 @@ export default function GroupDetail() {
   // Calculate cycle countdown
   const cycleCountdown = useMemo(() => {
     if (!activeCycle) return null;
+    const startDate = new Date(activeCycle.start_date);
     const dueDate = new Date(activeCycle.due_date);
     const now = new Date();
+    
+    // Check if cycle hasn't started yet
+    const daysUntilStart = differenceInDays(startDate, now);
+    const hoursUntilStart = differenceInHours(startDate, now) % 24;
+    
+    if (daysUntilStart > 0 || (daysUntilStart === 0 && hoursUntilStart > 0)) {
+      return { 
+        text: daysUntilStart === 0 ? `Starts in ${hoursUntilStart}h` : `Starts in ${daysUntilStart}d ${hoursUntilStart}h`,
+        isOverdue: false,
+        isPending: true,
+        daysLeft: daysUntilStart
+      };
+    }
+    
+    // Cycle has started, calculate time until due
     const daysLeft = differenceInDays(dueDate, now);
     const hoursLeft = differenceInHours(dueDate, now) % 24;
     
     if (daysLeft < 0) {
-      return { text: 'Overdue', isOverdue: true, daysLeft: Math.abs(daysLeft) };
+      return { text: 'Overdue', isOverdue: true, isPending: false, daysLeft: Math.abs(daysLeft) };
     }
     return { 
       text: daysLeft === 0 ? `${hoursLeft}h left` : `${daysLeft}d ${hoursLeft}h left`,
       isOverdue: false,
+      isPending: false,
       daysLeft 
     };
   }, [activeCycle]);
@@ -378,10 +396,19 @@ export default function GroupDetail() {
   };
 
   const startNewCycle = async () => {
-    if (!group || !selectedDueDate) {
+    if (!group || !selectedStartDate || !selectedDueDate) {
       toast({
         title: "Error",
-        description: "Please select a due date",
+        description: "Please select both start and end dates",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (selectedStartDate >= selectedDueDate) {
+      toast({
+        title: "Error",
+        description: "Start date must be before end date",
         variant: "destructive",
       });
       return;
@@ -394,6 +421,7 @@ export default function GroupDetail() {
         .from('payment_cycles')
         .insert({
           group_id: group.id,
+          start_date: selectedStartDate.toISOString(),
           due_date: selectedDueDate.toISOString(),
           status: 'active'
         })
@@ -429,10 +457,11 @@ export default function GroupDetail() {
 
       toast({ 
         title: "Cycle Started!",
-        description: `Payment cycle created with ${activeMembers.length} members. Due: ${format(selectedDueDate, 'PPP')}`
+        description: `Payment cycle created with ${activeMembers.length} members. ${format(selectedStartDate, 'MMM d')} → ${format(selectedDueDate, 'MMM d')}`
       });
       
       setCycleDialogOpen(false);
+      setSelectedStartDate(undefined);
       setSelectedDueDate(undefined);
       fetchGroupData();
     } catch (error: any) {
@@ -447,9 +476,10 @@ export default function GroupDetail() {
     }
   };
 
-  // Set default due date when dialog opens
+  // Set default dates when dialog opens
   const handleOpenCycleDialog = () => {
-    setSelectedDueDate(getDefaultDueDate());
+    setSelectedStartDate(new Date()); // Start date defaults to today
+    setSelectedDueDate(getDefaultDueDate()); // End date based on frequency
     setCycleDialogOpen(true);
   };
 
@@ -637,12 +667,14 @@ export default function GroupDetail() {
               </p>
             </div>
           </div>
-          {isPresident && (
-            <Button variant="outline" size="sm">
-              <Settings className="h-4 w-4 mr-2" />
-              Settings
-            </Button>
-          )}
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => navigate(`/groups/${id}/settings`)}
+          >
+            <Settings className="h-4 w-4 mr-2" />
+            Settings
+          </Button>
         </div>
       </header>
 
@@ -699,7 +731,10 @@ export default function GroupDetail() {
                 </div>
               </CardContent>
             </Card>
-            <Card className={activeCycle && cycleCountdown?.isOverdue ? 'border-destructive' : ''}>
+            <Card className={cn(
+              activeCycle && cycleCountdown?.isOverdue && 'border-destructive',
+              activeCycle && cycleCountdown?.isPending && 'border-blue-500'
+            )}>
               <CardContent className="pt-6">
                 <div className="flex items-center gap-3">
                   <div className={cn(
@@ -707,7 +742,9 @@ export default function GroupDetail() {
                     activeCycle 
                       ? cycleCountdown?.isOverdue 
                         ? "bg-destructive/10" 
-                        : "bg-primary/10"
+                        : cycleCountdown?.isPending
+                          ? "bg-blue-500/10"
+                          : "bg-primary/10"
                       : "bg-muted"
                   )}>
                     <Timer className={cn(
@@ -715,7 +752,9 @@ export default function GroupDetail() {
                       activeCycle 
                         ? cycleCountdown?.isOverdue 
                           ? "text-destructive" 
-                          : "text-primary"
+                          : cycleCountdown?.isPending
+                            ? "text-blue-500"
+                            : "text-primary"
                         : "text-muted-foreground"
                     )} />
                   </div>
@@ -724,12 +763,13 @@ export default function GroupDetail() {
                       <>
                         <p className={cn(
                           "text-2xl font-bold",
-                          cycleCountdown?.isOverdue && "text-destructive"
+                          cycleCountdown?.isOverdue && "text-destructive",
+                          cycleCountdown?.isPending && "text-blue-500"
                         )}>
                           {cycleCountdown?.text}
                         </p>
                         <p className="text-sm text-muted-foreground">
-                          Due {format(new Date(activeCycle.due_date), 'MMM d')}
+                          {format(new Date(activeCycle.start_date), 'MMM d')} → {format(new Date(activeCycle.due_date), 'MMM d')}
                         </p>
                       </>
                     ) : (
@@ -811,21 +851,40 @@ export default function GroupDetail() {
             </Card>
           )}
 
-          {/* View Invoice Card - Only show for non-president members when cycle is active */}
-          {activeCycle && !isPresident && (
+          {/* View Invoice Card - Show for all members (including president) when cycle is active */}
+          {activeCycle && (
             <Card className="bg-primary/5 border-primary/20">
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="font-medium">Payment Due</p>
+                    <p className="font-medium">Your Payment Due</p>
                     <p className="text-sm text-muted-foreground">
                       ${group.contribution_amount} by {format(new Date(activeCycle.due_date), 'MMM d, yyyy')}
                     </p>
+                    {/* Show current payment status for president */}
+                    {isPresident && (() => {
+                      const currentMember = members.find(m => m.user_id === user?.id);
+                      const myPaymentLog = paymentLogs.find(pl => pl.member_id === currentMember?.id);
+                      if (myPaymentLog) {
+                        const statusColors: Record<string, string> = {
+                          unpaid: 'text-muted-foreground',
+                          pending: 'text-yellow-600',
+                          verified: 'text-green-600',
+                          rejected: 'text-red-600'
+                        };
+                        return (
+                          <p className={`text-sm font-medium ${statusColors[myPaymentLog.status]}`}>
+                            Status: {myPaymentLog.status.charAt(0).toUpperCase() + myPaymentLog.status.slice(1)}
+                          </p>
+                        );
+                      }
+                      return null;
+                    })()}
                   </div>
                   <Button asChild>
                     <Link to={`/groups/${id}/invoice/${activeCycle.id}`}>
                       <DollarSign className="mr-2 h-4 w-4" />
-                      View Invoice
+                      {isPresident ? 'Make Payment' : 'View Invoice'}
                     </Link>
                   </Button>
                 </div>
@@ -973,7 +1032,7 @@ export default function GroupDetail() {
                       <CardTitle>Payment Status</CardTitle>
                       <CardDescription>
                         {activeCycle 
-                          ? `Current cycle due: ${format(new Date(activeCycle.due_date), 'PPP')}`
+                          ? `Cycle: ${format(new Date(activeCycle.start_date), 'MMM d')} → ${format(new Date(activeCycle.due_date), 'MMM d, yyyy')}`
                           : 'No active payment cycle'
                         }
                       </CardDescription>
@@ -1060,39 +1119,79 @@ export default function GroupDetail() {
                                   <p className="text-sm font-medium mb-2">Active Members</p>
                                   <p className="text-lg">{members.filter(m => m.status === 'active').length} members</p>
                                 </div>
-                                <div>
-                                  <p className="text-sm font-medium mb-2">Due Date</p>
-                                  <Popover>
-                                    <PopoverTrigger asChild>
-                                      <Button
-                                        variant="outline"
-                                        className={cn(
-                                          "w-full justify-start text-left font-normal",
-                                          !selectedDueDate && "text-muted-foreground"
-                                        )}
-                                      >
-                                        <Calendar className="mr-2 h-4 w-4" />
-                                        {selectedDueDate ? format(selectedDueDate, 'PPP') : 'Select due date'}
-                                      </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0" align="start">
-                                      <CalendarComponent
-                                        mode="single"
-                                        selected={selectedDueDate}
-                                        onSelect={setSelectedDueDate}
-                                        disabled={(date) => date < new Date()}
-                                        initialFocus
-                                      />
-                                    </PopoverContent>
-                                  </Popover>
+                                <div className="grid grid-cols-2 gap-4">
+                                  <div>
+                                    <p className="text-sm font-medium mb-2">Start Date</p>
+                                    <Popover>
+                                      <PopoverTrigger asChild>
+                                        <Button
+                                          variant="outline"
+                                          className={cn(
+                                            "w-full justify-start text-left font-normal",
+                                            !selectedStartDate && "text-muted-foreground"
+                                          )}
+                                        >
+                                          <Calendar className="mr-2 h-4 w-4" />
+                                          {selectedStartDate ? format(selectedStartDate, 'MMM d') : 'Select'}
+                                        </Button>
+                                      </PopoverTrigger>
+                                      <PopoverContent className="w-auto p-0" align="start">
+                                        <CalendarComponent
+                                          mode="single"
+                                          selected={selectedStartDate}
+                                          onSelect={setSelectedStartDate}
+                                          disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                                          initialFocus
+                                        />
+                                      </PopoverContent>
+                                    </Popover>
+                                  </div>
+                                  <div>
+                                    <p className="text-sm font-medium mb-2">End Date (Due)</p>
+                                    <Popover>
+                                      <PopoverTrigger asChild>
+                                        <Button
+                                          variant="outline"
+                                          className={cn(
+                                            "w-full justify-start text-left font-normal",
+                                            !selectedDueDate && "text-muted-foreground"
+                                          )}
+                                        >
+                                          <Calendar className="mr-2 h-4 w-4" />
+                                          {selectedDueDate ? format(selectedDueDate, 'MMM d') : 'Select'}
+                                        </Button>
+                                      </PopoverTrigger>
+                                      <PopoverContent className="w-auto p-0" align="start">
+                                        <CalendarComponent
+                                          mode="single"
+                                          selected={selectedDueDate}
+                                          onSelect={setSelectedDueDate}
+                                          disabled={(date) => date < (selectedStartDate || new Date())}
+                                          initialFocus
+                                        />
+                                      </PopoverContent>
+                                    </Popover>
+                                  </div>
                                 </div>
+                                {selectedStartDate && selectedDueDate && (
+                                  <div className="p-3 bg-muted rounded-lg">
+                                    <p className="text-sm text-center">
+                                      Cycle: <span className="font-medium">{format(selectedStartDate, 'MMM d')}</span>
+                                      {' → '}
+                                      <span className="font-medium">{format(selectedDueDate, 'MMM d, yyyy')}</span>
+                                    </p>
+                                  </div>
+                                )}
                               </div>
                             </div>
                             <DialogFooter>
                               <Button variant="outline" onClick={() => setCycleDialogOpen(false)}>
                                 Cancel
                               </Button>
-                              <Button onClick={startNewCycle} disabled={startingCycle || !selectedDueDate}>
+                              <Button 
+                                onClick={startNewCycle} 
+                                disabled={startingCycle || !selectedStartDate || !selectedDueDate || selectedStartDate >= selectedDueDate}
+                              >
                                 {startingCycle ? (
                                   <>
                                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
