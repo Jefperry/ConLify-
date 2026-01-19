@@ -3,14 +3,57 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <!-- TODO: Set the document title to the name of your application -->
-    <title>Lovable App</title>
-    <meta name="description" content="Lovable Generated Project" />
-    <meta name="author" content="Lovable" />
 
-    <!-- TODO: Update og:title to match your application name -->
-    <meta property="og:title" content="Lovable App" />
-    <meta property="og:description" content="Lovable Generated Project" />
+    <!-- Security Headers (CSP) - OWASP Recommended -->
+    <!-- 
+      Content Security Policy to prevent XSS attacks:
+      - default-src 'self': Only load resources from same origin by default
+      - script-src 'self' 'unsafe-inline': Allow scripts from same origin (unsafe-inline needed for Vite dev)
+      - style-src 'self' 'unsafe-inline': Allow styles from same origin (inline needed for CSS-in-JS)
+      - img-src 'self' data: https:: Allow images from same origin, data URIs, and HTTPS sources
+      - font-src 'self': Only load fonts from same origin
+      - connect-src 'self' https://*.supabase.co wss://*.supabase.co: Allow API calls to Supabase
+      - frame-ancestors 'none': Prevent clickjacking
+      - base-uri 'self': Prevent base tag hijacking
+      - form-action 'self': Restrict form submissions to same origin
+    -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; 
+                   script-src 'self' 'unsafe-inline' 'unsafe-eval'; 
+                   style-src 'self' 'unsafe-inline'; 
+                   img-src 'self' data: https:; 
+                   font-src 'self' data:; 
+                   connect-src 'self' https://*.supabase.co wss://*.supabase.co; 
+                   frame-ancestors 'none'; 
+                   base-uri 'self'; 
+                   form-action 'self';"
+    />
+
+    <!-- Prevent MIME type sniffing -->
+    <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+
+    <!-- Prevent clickjacking -->
+    <meta http-equiv="X-Frame-Options" content="DENY" />
+
+    <!-- Enable XSS filter in older browsers -->
+    <meta http-equiv="X-XSS-Protection" content="1; mode=block" />
+
+    <!-- Referrer Policy - don't leak URLs to third parties -->
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
+
+    <title>ConLify - Digital ROSCA Ledger</title>
+    <meta
+      name="description"
+      content="ConLify - A modern digital ledger for Rotating Savings and Credit Associations (ROSCA)"
+    />
+    <meta name="author" content="ConLify" />
+
+    <meta property="og:title" content="ConLify - Digital ROSCA Ledger" />
+    <meta
+      property="og:description"
+      content="Manage your savings groups digitally with ConLify"
+    />
     <meta property="og:type" content="website" />
     <meta
       property="og:image"
@@ -18,7 +61,7 @@
     />
 
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:site" content="@Lovable" />
+    <meta name="twitter:site" content="@ConLify" />
     <meta
       name="twitter:image"
       content="https://lovable.dev/opengraph-image-p98pqg.png"

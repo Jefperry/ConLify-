@@ -8,6 +8,16 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { Loader2, Eye, EyeOff, Check } from 'lucide-react';
 import { toast } from 'sonner';
+import { 
+  validateSchema, 
+  SCHEMAS, 
+  checkRateLimit, 
+  RATE_LIMITS, 
+  getRateLimitIdentifier,
+  RateLimitError,
+  ValidationError,
+  sanitizeString
+} from '@/lib/security';
 
 export default function SignupPage() {
   const [name, setName] = useState('');
@@ -17,6 +27,7 @@ export default function SignupPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const { signUp } = useAuth();
   const navigate = useNavigate();
 
@@ -31,6 +42,7 @@ export default function SignupPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setFieldErrors({});
 
     if (!allRequirementsMet) {
       toast.error('Please meet all password requirements');
@@ -44,13 +56,49 @@ export default function SignupPage() {
 
     setLoading(true);
 
-    const { error } = await signUp(email, password, name);
+    try {
+      // Rate limiting check - stricter for signups
+      const identifier = getRateLimitIdentifier();
+      const { allowed, retryAfterMs } = checkRateLimit(identifier, RATE_LIMITS.signup);
+      
+      if (!allowed) {
+        throw new RateLimitError(retryAfterMs!);
+      }
 
-    if (error) {
-      toast.error(error.message);
+      // Validate and sanitize input
+      const validation = validateSchema({ name, email, password }, SCHEMAS.signup);
+      
+      if (!validation.valid) {
+        throw new ValidationError(validation.errors);
+      }
+
+      const sanitizedData = validation.sanitized as { name: string; email: string; password: string };
+      const { error } = await signUp(sanitizedData.email, sanitizedData.password, sanitizedData.name);
+
+      if (error) {
+        toast.error(error.message);
+        setLoading(false);
+      } else {
+        setEmailSent(true);
+      }
+    } catch (err) {
+      if (err instanceof RateLimitError) {
+        toast.error(err.message);
+      } else if (err instanceof ValidationError) {
+        // Map errors to fields for display
+        const errors: Record<string, string> = {};
+        err.fieldErrors.forEach(error => {
+          const errorLower = error.toLowerCase();
+          if (errorLower.includes('name')) errors.name = error;
+          if (errorLower.includes('email')) errors.email = error;
+          if (errorLower.includes('password')) errors.password = error;
+        });
+        setFieldErrors(errors);
+        toast.error('Please fix the errors below');
+      } else {
+        toast.error('An unexpected error occurred');
+      }
       setLoading(false);
-    } else {
-      setEmailSent(true);
     }
   };
 
@@ -123,7 +171,13 @@ export default function SignupPage() {
                   onChange={(e) => setName(e.target.value)}
                   required
                   disabled={loading}
+                  maxLength={100}
+                  className={fieldErrors.name ? 'border-destructive' : ''}
+                  aria-invalid={!!fieldErrors.name}
                 />
+                {fieldErrors.name && (
+                  <p className="text-sm text-destructive">{fieldErrors.name}</p>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -136,7 +190,13 @@ export default function SignupPage() {
                   onChange={(e) => setEmail(e.target.value)}
                   required
                   disabled={loading}
+                  maxLength={254}
+                  className={fieldErrors.email ? 'border-destructive' : ''}
+                  aria-invalid={!!fieldErrors.email}
                 />
+                {fieldErrors.email && (
+                  <p className="text-sm text-destructive">{fieldErrors.email}</p>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -150,6 +210,9 @@ export default function SignupPage() {
                     onChange={(e) => setPassword(e.target.value)}
                     required
                     disabled={loading}
+                    maxLength={128}
+                    className={fieldErrors.password ? 'border-destructive' : ''}
+                    aria-invalid={!!fieldErrors.password}
                   />
                   <Button
                     type="button"
