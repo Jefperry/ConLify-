@@ -12,6 +12,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { addNotification, showNotification, requestNotificationPermission } from '@/lib/notifications';
 import { Group, GroupMember, PaymentCycle, PaymentLog, PaymentStatus } from '@/types/database';
 import { format } from 'date-fns';
 
@@ -88,8 +89,76 @@ export default function Invoice() {
   useEffect(() => {
     if (groupId && cycleId && user) {
       fetchInvoiceData();
+      requestNotificationPermission();
     }
   }, [groupId, cycleId, user, fetchInvoiceData]);
+
+  // Real-time subscription for payment status updates
+  useEffect(() => {
+    if (!paymentLog) return;
+
+    const paymentLogId = paymentLog.id;
+    const groupName = group?.name;
+
+    const subscription = supabase
+      .channel(`payment_log_${paymentLogId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'payment_logs',
+          filter: `id=eq.${paymentLogId}`,
+        },
+        (payload) => {
+          const newLog = payload.new as PaymentLog;
+          setPaymentLog(newLog);
+
+          if (newLog.status === 'verified') {
+            addNotification({
+              type: 'payment_verified',
+              title: 'Payment Verified!',
+              message: `Your payment for ${groupName || 'the group'} has been verified by the president.`,
+              groupId: groupId,
+            });
+
+            showNotification('Payment Verified! ✅', {
+              body: `Your payment for ${groupName || 'the group'} has been verified.`,
+              tag: `payment-verified-${paymentLogId}`,
+            });
+
+            toast({
+              title: "Payment Verified! 🎉",
+              description: "The president has verified your payment.",
+            });
+          } else if (newLog.status === 'rejected') {
+            addNotification({
+              type: 'payment_rejected',
+              title: 'Payment Rejected',
+              message: `Your payment for ${groupName || 'the group'} was rejected. Please check with the president.`,
+              groupId: groupId,
+            });
+
+            showNotification('Payment Rejected', {
+              body: `Your payment was rejected. Please check with the president.`,
+              tag: `payment-rejected-${paymentLogId}`,
+            });
+
+            toast({
+              title: "Payment Rejected",
+              description: "Please check with the president for details.",
+              variant: "destructive",
+            });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(subscription);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paymentLog?.id, group?.name, groupId, toast]);
 
   const markAsSent = async () => {
     if (!paymentLog) return;

@@ -21,6 +21,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { closeCycle, restoreMember } from '@/lib/cycleManagement';
+import { addNotification, showNotification, requestNotificationPermission } from '@/lib/notifications';
 import { Group, GroupMember, Profile, PaymentCycle, PaymentLog, MemberStatus, PaymentStatus, MemberRole } from '@/types/database';
 
 interface MemberWithProfile extends GroupMember {
@@ -104,6 +105,58 @@ export default function GroupDetail() {
       fetchGroupData();
     }
   }, [id]);
+
+  // Real-time subscription for payment updates (president only)
+  useEffect(() => {
+    if (!activeCycle || !isPresident) return;
+
+    // Request notification permission when president visits group page
+    requestNotificationPermission();
+
+    const subscription = supabase
+      .channel(`payment_logs_${activeCycle.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'payment_logs',
+          filter: `cycle_id=eq.${activeCycle.id}`,
+        },
+        async (payload) => {
+          const newLog = payload.new as PaymentLog;
+          
+          // Only notify when payment changes to 'pending'
+          if (newLog.status === 'pending') {
+            // Find member info for this payment
+            const member = members.find(m => m.id === newLog.member_id);
+            const memberName = member?.profile?.name || 'A member';
+            
+            // Add in-app notification
+            addNotification({
+              type: 'payment_pending',
+              title: 'Payment Submitted',
+              message: `${memberName} has marked their payment as sent and is awaiting verification.`,
+              groupId: id,
+            });
+
+            // Show browser notification
+            showNotification('Payment Submitted', {
+              body: `${memberName} has marked their payment as sent.`,
+              tag: `payment-${newLog.id}`,
+            });
+
+            // Refresh payment logs
+            fetchGroupData();
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(subscription);
+    };
+  }, [activeCycle?.id, isPresident, members]);
 
   const fetchGroupData = async () => {
     try {
