@@ -155,4 +155,77 @@
   .text-balance {
     text-wrap: balance;
   }
+
+  /* Glass morphism effect */
+  .glass {
+    @apply bg-white/80 dark:bg-card/80 backdrop-blur-md;
+  }
+
+  /* Gradient backgrounds */
+  .gradient-primary {
+    @apply bg-gradient-to-br from-primary to-primary/80;
+  }
+
+  .gradient-card {
+    @apply bg-gradient-to-br from-card to-secondary/30;
+  }
+
+  .gradient-subtle {
+    @apply bg-gradient-to-br from-background to-secondary/50;
+  }
+
+  /* Skeleton loading shimmer */
+  .skeleton {
+    @apply relative overflow-hidden bg-muted;
+    background: linear-gradient(
+      90deg,
+      hsl(var(--muted)) 0%,
+      hsl(var(--muted) / 0.5) 50%,
+      hsl(var(--muted)) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 2s linear infinite;
+  }
+
+  /* Hover lift effect */
+  .hover-lift {
+    @apply transition-all duration-300;
+  }
+  .hover-lift:hover {
+    @apply -translate-y-1 shadow-soft-md;
+  }
+
+  /* Focus ring style */
+  .focus-ring {
+    @apply focus:outline-none focus:ring-2 focus:ring-primary/20 focus:ring-offset-2 focus:ring-offset-background;
+  }
+
+  /* Card variants */
+  .card-elevated {
+    @apply bg-card rounded-2xl shadow-soft border border-border/50 p-6;
+  }
+
+  .card-interactive {
+    @apply card-elevated hover-lift cursor-pointer;
+  }
+
+  /* Text gradient */
+  .text-gradient {
+    @apply bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent;
+  }
+
+  /* Section spacing */
+  .section-spacing {
+    @apply py-16 md:py-24;
+  }
+
+  /* Container padding */
+  .container-padding {
+    @apply px-4 sm:px-6 lg:px-8;
+  }
+
+  /* Divider */
+  .divider {
+    @apply h-px w-full bg-gradient-to-r from-transparent via-border to-transparent;
+  }
 }
