@@ -7,7 +7,7 @@ import NotificationCenter from '@/components/NotificationCenter';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { StatCard, StatCardGrid } from '@/components/ui/stat-card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { PageHeader } from '@/components/ui/page-header';
@@ -584,7 +584,13 @@ function GroupCard({
       onClick={onClick}
     >
       <CardHeader className="pb-3">
-        <div className="flex justify-between items-start">
+        <div className="flex justify-between items-start gap-3">
+          <Avatar className="h-12 w-12 ring-2 ring-primary/10 flex-shrink-0">
+            <AvatarImage src={group.photo_url || undefined} alt={group.name} />
+            <AvatarFallback className="bg-primary/10 text-primary">
+              <Users className="h-5 w-5" />
+            </AvatarFallback>
+          </Avatar>
           <div className="flex-1 min-w-0">
             <CardTitle className="text-lg truncate group-hover:text-primary transition-colors">
               {group.name}
@@ -601,7 +607,7 @@ function GroupCard({
               </span>
             </CardDescription>
           </div>
-          <div className="p-2 rounded-lg bg-muted group-hover:bg-primary/10 transition-colors">
+          <div className="p-2 rounded-lg bg-muted group-hover:bg-primary/10 transition-colors flex-shrink-0">
             <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
           </div>
         </div>

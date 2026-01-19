@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Users, Loader2, CheckCircle, Crown, Shield, User } from 'lucide-react';
+import { ArrowLeft, Users, Loader2, CheckCircle, Crown, Shield, User, PiggyBank, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -214,29 +214,45 @@ export default function JoinGroup() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-gradient-to-b from-background to-muted/20 relative overflow-hidden">
+      {/* Background Decoration */}
+      <div className="absolute top-20 left-10 w-72 h-72 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-20 right-10 w-96 h-96 bg-accent/5 rounded-full blur-3xl pointer-events-none" />
+      
       {/* Header */}
-      <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
+      <header className="border-b border-border/50 bg-background/80 backdrop-blur-md sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex items-center gap-4">
-          <Button variant="ghost" size="icon" asChild>
+          <Button variant="ghost" size="icon" className="hover:bg-muted" asChild>
             <Link to="/dashboard">
               <ArrowLeft className="h-5 w-5" />
             </Link>
           </Button>
-          <h1 className="text-xl font-semibold">Join a Group</h1>
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-primary/10">
+              <PiggyBank className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <h1 className="text-xl font-semibold">Join a Group</h1>
+              <p className="text-sm text-muted-foreground">Enter an invite code to join</p>
+            </div>
+          </div>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8 max-w-2xl">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5 text-primary" />
-              Enter Invite Code
-            </CardTitle>
-            <CardDescription>
-              Enter the invite code shared by the group president to join their savings group.
-            </CardDescription>
+      <main className="container mx-auto px-4 py-8 max-w-2xl relative">
+        <Card className="card-elevated">
+          <CardHeader className="pb-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-primary/10">
+                <UserPlus className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <CardTitle>Enter Invite Code</CardTitle>
+                <CardDescription className="mt-1">
+                  Enter the invite code shared by the group president to join their savings group.
+                </CardDescription>
+              </div>
+            </div>
           </CardHeader>
           <CardContent className="space-y-6">
             {!groupPreview ? (
@@ -260,13 +276,13 @@ export default function JoinGroup() {
 
                 <Button 
                   onClick={lookupGroup} 
-                  className="w-full" 
+                  className="w-full shadow-soft h-12 text-base" 
                   size="lg" 
                   disabled={loading || !inviteCode.trim()}
                 >
                   {loading ? (
                     <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                       Looking up...
                     </>
                   ) : (
@@ -277,9 +293,9 @@ export default function JoinGroup() {
             ) : (
               <div className="space-y-6">
                 {/* Group Preview */}
-                <div className="bg-primary/5 border border-primary/20 rounded-lg p-6">
+                <div className="bg-gradient-to-br from-primary/5 to-primary/10 border border-primary/20 rounded-xl p-6">
                   <div className="flex items-center gap-3 mb-4">
-                    <div className="p-3 rounded-full bg-primary/10">
+                    <div className="p-3 rounded-xl bg-primary/10 ring-2 ring-primary/20">
                       <Users className="h-6 w-6 text-primary" />
                     </div>
                     <div>
@@ -291,12 +307,12 @@ export default function JoinGroup() {
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-sm text-muted-foreground">Frequency</p>
+                    <div className="p-3 bg-background/60 rounded-lg">
+                      <p className="text-xs text-muted-foreground mb-1">Frequency</p>
                       <p className="font-medium capitalize">{groupPreview.frequency}</p>
                     </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Contribution</p>
+                    <div className="p-3 bg-background/60 rounded-lg">
+                      <p className="text-xs text-muted-foreground mb-1">Contribution</p>
                       <p className="font-medium">${groupPreview.contribution_amount}</p>
                     </div>
                   </div>
@@ -342,7 +358,7 @@ export default function JoinGroup() {
                 <div className="flex gap-3">
                   <Button 
                     variant="outline" 
-                    className="flex-1"
+                    className="flex-1 h-11"
                     onClick={() => {
                       setGroupPreview(null);
                       setInviteCode('');
@@ -353,7 +369,7 @@ export default function JoinGroup() {
                   </Button>
                   <Button 
                     onClick={joinGroup} 
-                    className="flex-1" 
+                    className="flex-1 h-11 shadow-soft" 
                     disabled={loading}
                   >
                     {loading ? (

@@ -9,6 +9,7 @@ export interface Profile {
   email: string;
   name: string | null;
   phone: string | null;
+  avatar_url: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -21,6 +22,7 @@ export interface Group {
   contribution_amount: number;
   president_email: string;
   invite_code: string;
+  photo_url: string | null;
   archived_at: string | null;
   created_at: string;
   updated_at: string;

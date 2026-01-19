@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Users, DollarSign, Calendar, Loader2, Crown, Shield, User } from 'lucide-react';
+import { ArrowLeft, Users, DollarSign, Calendar, Loader2, Crown, Shield, User, PiggyBank, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -173,29 +173,45 @@ export default function CreateGroup() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-gradient-to-b from-background to-muted/20 relative overflow-hidden">
+      {/* Background Decoration */}
+      <div className="absolute top-20 left-10 w-72 h-72 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-20 right-10 w-96 h-96 bg-accent/5 rounded-full blur-3xl pointer-events-none" />
+      
       {/* Header */}
-      <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
+      <header className="border-b border-border/50 bg-background/80 backdrop-blur-md sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex items-center gap-4">
-          <Button variant="ghost" size="icon" asChild>
+          <Button variant="ghost" size="icon" className="hover:bg-muted" asChild>
             <Link to="/dashboard">
               <ArrowLeft className="h-5 w-5" />
             </Link>
           </Button>
-          <h1 className="text-xl font-semibold">Create New Group</h1>
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-primary/10">
+              <PiggyBank className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <h1 className="text-xl font-semibold">Create New Group</h1>
+              <p className="text-sm text-muted-foreground">Start a new savings circle</p>
+            </div>
+          </div>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8 max-w-2xl">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5 text-primary" />
-              Group Details
-            </CardTitle>
-            <CardDescription>
-              Set up your savings group. You'll be the president and can invite members after creation.
-            </CardDescription>
+      <main className="container mx-auto px-4 py-8 max-w-2xl relative">
+        <Card className="card-elevated">
+          <CardHeader className="pb-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-primary/10">
+                <Users className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <CardTitle>Group Details</CardTitle>
+                <CardDescription className="mt-1">
+                  Set up your savings group. You'll be the president and can invite members after creation.
+                </CardDescription>
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
@@ -316,18 +332,18 @@ export default function CreateGroup() {
               </div>
 
               {/* Submit Button */}
-              <Button type="submit" className="w-full" size="lg" disabled={loading}>
+              <Button type="submit" className="w-full shadow-soft h-12 text-base" size="lg" disabled={loading}>
                 {loading ? (
                   <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                     Creating Group...
                   </>
                 ) : (
                   <>
-                    <Users className="mr-2 h-4 w-4" />
+                    <Plus className="mr-2 h-5 w-5" />
                     Create Group
                   </>
-                )}
+                )}  
               </Button>
             </form>
           </CardContent>

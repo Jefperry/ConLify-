@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft, DollarSign, Mail, Clock, CheckCircle, 
-  Send, Loader2, AlertCircle, Calendar, User
+  Send, Loader2, AlertCircle, Calendar, User, PiggyBank, Receipt
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -212,15 +212,25 @@ export default function Invoice() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background">
-        <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
+      <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
+        <header className="border-b border-border/50 bg-background/80 backdrop-blur-md sticky top-0 z-50">
           <div className="container mx-auto px-4 py-4 flex items-center gap-4">
-            <Skeleton className="h-10 w-10" />
-            <Skeleton className="h-6 w-48" />
+            <Skeleton className="h-10 w-10 rounded-lg" />
+            <div className="flex items-center gap-3">
+              <Skeleton className="h-10 w-10 rounded-lg" />
+              <div>
+                <Skeleton className="h-5 w-36" />
+                <Skeleton className="h-4 w-24 mt-1" />
+              </div>
+            </div>
           </div>
         </header>
         <main className="container mx-auto px-4 py-8 max-w-lg">
-          <Skeleton className="h-96 w-full" />
+          <div className="space-y-4">
+            <Skeleton className="h-20 w-full rounded-xl" />
+            <Skeleton className="h-48 w-full rounded-xl" />
+            <Skeleton className="h-40 w-full rounded-xl" />
+          </div>
         </main>
       </div>
     );
@@ -228,11 +238,14 @@ export default function Invoice() {
 
   if (!group || !cycle || !member) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
+      <div className="min-h-screen bg-gradient-to-b from-background to-muted/20 flex items-center justify-center">
+        <div className="text-center p-8">
+          <div className="p-4 rounded-2xl bg-destructive/10 w-fit mx-auto mb-4">
+            <AlertCircle className="h-12 w-12 text-destructive" />
+          </div>
           <h2 className="text-xl font-semibold mb-2">Invoice not found</h2>
-          <Button asChild>
+          <p className="text-muted-foreground mb-6">The invoice you're looking for doesn't exist or has been removed.</p>
+          <Button className="shadow-soft" asChild>
             <Link to="/dashboard">Back to Dashboard</Link>
           </Button>
         </div>
@@ -247,23 +260,32 @@ export default function Invoice() {
   const isRejected = paymentLog?.status === 'rejected';
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-gradient-to-b from-background to-muted/20 relative overflow-hidden">
+      {/* Background Decoration */}
+      <div className="absolute top-20 left-10 w-72 h-72 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-20 right-10 w-96 h-96 bg-accent/5 rounded-full blur-3xl pointer-events-none" />
+      
       {/* Header */}
-      <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
+      <header className="border-b border-border/50 bg-background/80 backdrop-blur-md sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex items-center gap-4">
-          <Button variant="ghost" size="icon" asChild>
+          <Button variant="ghost" size="icon" className="hover:bg-muted" asChild>
             <Link to={`/groups/${groupId}`}>
               <ArrowLeft className="h-5 w-5" />
             </Link>
           </Button>
-          <div>
-            <h1 className="text-xl font-semibold">Payment Invoice</h1>
-            <p className="text-sm text-muted-foreground">{group.name}</p>
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-primary/10">
+              <PiggyBank className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <h1 className="text-xl font-semibold">Payment Invoice</h1>
+              <p className="text-sm text-muted-foreground">{group.name}</p>
+            </div>
           </div>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8 max-w-lg">
+      <main className="container mx-auto px-4 py-8 max-w-lg relative">
         <div className="space-y-6">
           {/* Locked Member Warning */}
           {isLocked && (
@@ -278,10 +300,10 @@ export default function Invoice() {
 
           {/* Payment Status */}
           {paymentLog && (
-            <Card>
+            <Card className="card-elevated">
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Payment Status</span>
+                  <span className="text-sm font-medium text-muted-foreground">Payment Status</span>
                   {getStatusBadge(paymentLog.status)}
                 </div>
                 {paymentLog.marked_at && (
@@ -299,14 +321,18 @@ export default function Invoice() {
           )}
 
           {/* Amount Card */}
-          <Card>
-            <CardHeader className="text-center pb-2">
-              <CardDescription>Amount Due</CardDescription>
-              <CardTitle className="text-5xl font-bold text-primary">
+          <Card className="card-elevated overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5 pointer-events-none" />
+            <CardHeader className="text-center pb-2 relative">
+              <CardDescription className="flex items-center justify-center gap-2">
+                <Receipt className="h-4 w-4" />
+                Amount Due
+              </CardDescription>
+              <CardTitle className="text-5xl font-bold text-primary mt-2">
                 ${group.contribution_amount.toFixed(2)}
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-4 relative">
               <div className="flex items-center justify-between py-3 border-t">
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <Calendar className="h-4 w-4" />
@@ -327,10 +353,12 @@ export default function Invoice() {
           </Card>
 
           {/* E-Transfer Instructions */}
-          <Card>
+          <Card className="card-elevated">
             <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Mail className="h-5 w-5 text-primary" />
+              <CardTitle className="text-lg flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-primary/10">
+                  <Mail className="h-5 w-5 text-primary" />
+                </div>
                 E-Transfer Instructions
               </CardTitle>
             </CardHeader>
@@ -355,7 +383,7 @@ export default function Invoice() {
               <Button 
                 onClick={markAsSent} 
                 disabled={marking}
-                className="w-full h-12 text-lg"
+                className="w-full h-12 text-lg shadow-soft"
                 size="lg"
               >
                 {marking ? (
@@ -373,20 +401,24 @@ export default function Invoice() {
             )}
 
             {isPending && (
-              <div className="text-center py-4">
-                <CheckCircle className="h-12 w-12 text-yellow-500 mx-auto mb-3" />
+              <div className="text-center py-6 px-4 bg-yellow-500/5 border border-yellow-500/20 rounded-xl">
+                <div className="p-3 rounded-full bg-yellow-500/10 w-fit mx-auto mb-3">
+                  <Clock className="h-8 w-8 text-yellow-600" />
+                </div>
                 <p className="font-medium">Payment Marked as Sent</p>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-sm text-muted-foreground mt-1">
                   Waiting for president to verify your payment
                 </p>
               </div>
             )}
 
             {isVerified && (
-              <div className="text-center py-4">
-                <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-3" />
+              <div className="text-center py-6 px-4 bg-green-500/5 border border-green-500/20 rounded-xl">
+                <div className="p-3 rounded-full bg-green-500/10 w-fit mx-auto mb-3">
+                  <CheckCircle className="h-8 w-8 text-green-600" />
+                </div>
                 <p className="font-medium text-green-600">Payment Verified!</p>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-sm text-muted-foreground mt-1">
                   Thank you for your contribution
                 </p>
               </div>
@@ -394,10 +426,12 @@ export default function Invoice() {
 
             {isRejected && (
               <div className="space-y-3">
-                <div className="text-center py-4">
-                  <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-3" />
+                <div className="text-center py-6 px-4 bg-destructive/5 border border-destructive/20 rounded-xl">
+                  <div className="p-3 rounded-full bg-destructive/10 w-fit mx-auto mb-3">
+                    <AlertCircle className="h-8 w-8 text-destructive" />
+                  </div>
                   <p className="font-medium text-destructive">Payment Rejected</p>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-sm text-muted-foreground mt-1">
                     The president could not verify your payment. Please try again.
                   </p>
                 </div>
@@ -424,7 +458,7 @@ export default function Invoice() {
           </div>
 
           {/* Back Button */}
-          <Button variant="outline" className="w-full" asChild>
+          <Button variant="outline" className="w-full h-11" asChild>
             <Link to={`/groups/${groupId}`}>
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back to Group
