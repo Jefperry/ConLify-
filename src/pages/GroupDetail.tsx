@@ -3,7 +3,8 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft, Users, Copy, Check, Calendar, DollarSign, 
   Crown, AlertCircle, CheckCircle, Clock, XCircle, Loader2,
-  UserPlus, Settings, Shield, User, Play, Timer, Filter, StopCircle, RotateCcw, Lock
+  UserPlus, Settings, Shield, User, Play, Timer, Filter, StopCircle, RotateCcw, Lock,
+  ChevronUp, ChevronDown
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -52,6 +53,7 @@ export default function GroupDetail() {
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [closingCycle, setClosingCycle] = useState(false);
   const [restoringMemberId, setRestoringMemberId] = useState<string | null>(null);
+  const [movingMemberId, setMovingMemberId] = useState<string | null>(null);
 
   const isPresident = group?.president_id === user?.id;
 
@@ -519,6 +521,68 @@ export default function GroupDetail() {
     }
   };
 
+  // Move member up or down in the queue
+  const handleMoveQueuePosition = async (memberId: string, direction: 'up' | 'down') => {
+    const activeMembers = members.filter(m => m.status === 'active').sort((a, b) => a.queue_position - b.queue_position);
+    const memberIndex = activeMembers.findIndex(m => m.id === memberId);
+    
+    if (memberIndex === -1) return;
+    if (direction === 'up' && memberIndex === 0) return;
+    if (direction === 'down' && memberIndex === activeMembers.length - 1) return;
+
+    const targetIndex = direction === 'up' ? memberIndex - 1 : memberIndex + 1;
+    const currentMember = activeMembers[memberIndex];
+    const swapMember = activeMembers[targetIndex];
+
+    setMovingMemberId(memberId);
+    try {
+      const tempPosition = -1; // Temporary position to avoid unique constraint
+      const currentPos = currentMember.queue_position;
+      const swapPos = swapMember.queue_position;
+
+      // Step 1: Move current member to temporary position
+      const { error: error1 } = await supabase
+        .from('group_members')
+        .update({ queue_position: tempPosition })
+        .eq('id', currentMember.id);
+
+      if (error1) throw error1;
+
+      // Step 2: Move swap member to current member's original position
+      const { error: error2 } = await supabase
+        .from('group_members')
+        .update({ queue_position: currentPos })
+        .eq('id', swapMember.id);
+
+      if (error2) throw error2;
+
+      // Step 3: Move current member to swap member's original position
+      const { error: error3 } = await supabase
+        .from('group_members')
+        .update({ queue_position: swapPos })
+        .eq('id', currentMember.id);
+
+      if (error3) throw error3;
+
+      toast({
+        title: "Queue Updated",
+        description: `${currentMember.profile?.name || 'Member'} moved ${direction} to position #${swapPos}`,
+      });
+
+      fetchGroupData();
+    } catch (error: any) {
+      console.error('Queue position error:', error);
+      const errorMessage = error?.message || error?.details || "Failed to update queue position";
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setMovingMemberId(null);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background">
@@ -680,6 +744,39 @@ export default function GroupDetail() {
             </Card>
           </div>
 
+          {/* Next Payout Recipient Card */}
+          {members.filter(m => m.status === 'active').length > 0 && (
+            <Card className="border-primary/20 bg-primary/5">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 rounded-full bg-primary/10">
+                      <Crown className="h-6 w-6 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Next Payout Recipient</p>
+                      <p className="text-xl font-bold">
+                        {(() => {
+                          const activeMembers = members.filter(m => m.status === 'active');
+                          const nextRecipient = activeMembers.sort((a, b) => a.queue_position - b.queue_position)[0];
+                          return nextRecipient?.profile?.name || 'Unknown';
+                        })()}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        Queue Position #1 • Receives ${(members.filter(m => m.status === 'active').length * group.contribution_amount).toFixed(2)}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm text-muted-foreground">
+                      {group.frequency === 'weekly' ? 'Every Week' : 'Every Month'}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Payment Progress Bar - Only show when cycle is active */}
           {activeCycle && paymentLogs.length > 0 && (
             <Card>
@@ -781,6 +878,29 @@ export default function GroupDetail() {
                             </div>
                           </div>
                           <div className="flex items-center gap-3">
+                            {/* Queue Position Controls (President Only, Active Members Only) */}
+                            {isPresident && !isLocked && (
+                              <div className="flex flex-col gap-0.5">
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-6 w-6"
+                                  disabled={movingMemberId === member.id || member.queue_position === 1}
+                                  onClick={() => handleMoveQueuePosition(member.id, 'up')}
+                                >
+                                  <ChevronUp className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-6 w-6"
+                                  disabled={movingMemberId === member.id || member.queue_position === members.filter(m => m.status === 'active').length}
+                                  onClick={() => handleMoveQueuePosition(member.id, 'down')}
+                                >
+                                  <ChevronDown className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            )}
                             {getRoleBadge(member.role)}
                             {member.missed_payment_count > 0 && (
                               <Badge variant="outline" className="text-warning border-warning/20">

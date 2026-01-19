@@ -28,13 +28,25 @@ import {
   UserPlus
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { format } from 'date-fns';
 import type { Group } from '@/types/database';
+
+interface DashboardStats {
+  totalContributions: number;
+  nextPaymentDue: Date | null;
+  nextPaymentGroup: string | null;
+}
 
 export default function DashboardPage() {
   const { user, signOut, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState<DashboardStats>({
+    totalContributions: 0,
+    nextPaymentDue: null,
+    nextPaymentGroup: null,
+  });
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -84,6 +96,9 @@ export default function DashboardPage() {
       const uniqueGroups = Array.from(new Map(allGroups.map((g) => [g.id, g])).values());
       
       setGroups(uniqueGroups as Group[]);
+
+      // Calculate dashboard stats
+      await calculateStats(uniqueGroups as Group[]);
     } catch (error: any) {
       console.error('Error fetching groups:', error);
       // If tables don't exist yet, show empty state
@@ -94,6 +109,89 @@ export default function DashboardPage() {
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const calculateStats = async (userGroups: Group[]) => {
+    try {
+      if (userGroups.length === 0) {
+        setStats({ totalContributions: 0, nextPaymentDue: null, nextPaymentGroup: null });
+        return;
+      }
+
+      const groupIds = userGroups.map(g => g.id);
+
+      // Get all verified payment logs for user's groups
+      // First, get user's member IDs
+      const { data: memberData } = await supabase
+        .from('group_members')
+        .select('id, group_id')
+        .eq('user_id', user!.id)
+        .in('group_id', groupIds);
+
+      if (memberData && memberData.length > 0) {
+        const memberIds = memberData.map(m => m.id);
+
+        // Get verified payments for this user
+        const { data: verifiedPayments } = await supabase
+          .from('payment_logs')
+          .select('id')
+          .in('member_id', memberIds)
+          .eq('status', 'verified');
+
+        // Calculate total contributions
+        let totalContributions = 0;
+        if (verifiedPayments) {
+          // Map member_id back to group to get contribution amount
+          for (const payment of verifiedPayments) {
+            // For simplicity, we'll calculate based on the groups' contribution amounts
+            // In a more complex setup, you'd join this properly
+          }
+          // For now, count verified payments and multiply by average contribution
+          const avgContribution = userGroups.reduce((sum, g) => sum + g.contribution_amount, 0) / userGroups.length;
+          totalContributions = verifiedPayments.length * avgContribution;
+        }
+
+        // More accurate calculation: Get payments with their cycle info
+        const { data: paymentsWithCycles } = await supabase
+          .from('payment_logs')
+          .select('*, payment_cycles!inner(group_id)')
+          .in('member_id', memberIds)
+          .eq('status', 'verified');
+
+        if (paymentsWithCycles) {
+          totalContributions = 0;
+          for (const payment of paymentsWithCycles) {
+            const groupId = (payment.payment_cycles as any)?.group_id;
+            const group = userGroups.find(g => g.id === groupId);
+            if (group) {
+              totalContributions += group.contribution_amount;
+            }
+          }
+        }
+
+        setStats(prev => ({ ...prev, totalContributions }));
+      }
+
+      // Get next payment due (active cycles for user's groups)
+      const { data: activeCycles } = await supabase
+        .from('payment_cycles')
+        .select('*, groups!inner(name)')
+        .in('group_id', groupIds)
+        .eq('status', 'active')
+        .order('due_date', { ascending: true })
+        .limit(1);
+
+      if (activeCycles && activeCycles.length > 0) {
+        const nextCycle = activeCycles[0];
+        setStats(prev => ({
+          ...prev,
+          nextPaymentDue: new Date(nextCycle.due_date),
+          nextPaymentGroup: (nextCycle.groups as any)?.name || null,
+        }));
+      }
+    } catch (error) {
+      console.error('Error calculating stats:', error);
     }
   };
 
@@ -205,7 +303,13 @@ export default function DashboardPage() {
               <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-bold">$0</p>
+              {loading ? (
+                <Skeleton className="h-8 w-16" />
+              ) : (
+                <p className="text-2xl font-bold text-green-600">
+                  ${stats.totalContributions.toLocaleString()}
+                </p>
+              )}
             </CardContent>
           </Card>
 
@@ -217,7 +321,16 @@ export default function DashboardPage() {
               <Calendar className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-bold">—</p>
+              {loading ? (
+                <Skeleton className="h-8 w-20" />
+              ) : stats.nextPaymentDue ? (
+                <div>
+                  <p className="text-2xl font-bold">{format(stats.nextPaymentDue, 'MMM d')}</p>
+                  <p className="text-xs text-muted-foreground">{stats.nextPaymentGroup}</p>
+                </div>
+              ) : (
+                <p className="text-2xl font-bold text-muted-foreground">—</p>
+              )}
             </CardContent>
           </Card>
         </div>
