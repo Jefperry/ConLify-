@@ -256,8 +256,6 @@ export default function JoinGroup() {
                   {fieldError && (
                     <p className="text-sm text-destructive">{fieldError}</p>
                   )}
-                    className="font-mono text-lg tracking-wider"
-                  />
                 </div>
 
                 <Button 

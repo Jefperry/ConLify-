@@ -8,6 +8,11 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { StatCard, StatCardGrid } from '@/components/ui/stat-card';
+import { EmptyState } from '@/components/ui/empty-state';
+import { PageHeader } from '@/components/ui/page-header';
+import { Progress } from '@/components/ui/progress';
+import { Badge } from '@/components/ui/badge';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,17 +29,21 @@ import {
   Calendar, 
   ChevronRight,
   User,
-  Settings,
   UserPlus,
   Archive,
   RotateCcw,
   Trash2,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  PiggyBank,
+  TrendingUp,
+  Clock,
+  Sparkles
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { format } from 'date-fns';
+import { format, formatDistanceToNow } from 'date-fns';
 import type { Group } from '@/types/database';
+import { cn } from '@/lib/utils';
 import { 
   AlertDialog,
   AlertDialogAction,
@@ -306,19 +315,24 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="border-b bg-card">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-primary">ConLify</h1>
-          <div className="flex items-center gap-2">
+      <header className="border-b border-border/50 bg-background/80 backdrop-blur-md sticky top-0 z-50">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
+          <Link to="/" className="flex items-center gap-2">
+            <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center">
+              <PiggyBank className="h-5 w-5 text-primary-foreground" />
+            </div>
+            <span className="text-xl font-bold text-foreground">ConLify</span>
+          </Link>
+          <div className="flex items-center gap-3">
             <NotificationCenter />
             <ThemeToggle />
             
             {/* Profile Dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-9 w-9 rounded-full">
-                  <Avatar className="h-9 w-9">
-                    <AvatarFallback className="bg-primary/10 text-primary text-sm">
+                <Button variant="ghost" className="relative h-10 w-10 rounded-full ring-2 ring-border hover:ring-primary/50 transition-all">
+                  <Avatar className="h-10 w-10">
+                    <AvatarFallback className="bg-primary/10 text-primary font-medium">
                       {userInitials}
                     </AvatarFallback>
                   </Avatar>
@@ -357,140 +371,102 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8">
+      <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Welcome Section */}
-        <div className="mb-8 animate-fade-in">
-          <h2 className="text-3xl font-bold mb-2">Welcome, {userName}!</h2>
-          <p className="text-muted-foreground">Manage your savings groups and track contributions</p>
+        <div className="mb-8">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="animate-fade-in">
+              <div className="flex items-center gap-2 mb-1">
+                <h2 className="text-2xl sm:text-3xl font-bold text-foreground">Welcome back, {userName}!</h2>
+                <Sparkles className="h-6 w-6 text-primary animate-pulse-soft" />
+              </div>
+              <p className="text-muted-foreground">Here's what's happening with your savings groups</p>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => navigate('/groups/join')} className="shadow-soft">
+                <UserPlus className="mr-2 h-4 w-4" />
+                Join Group
+              </Button>
+              <Button onClick={() => navigate('/groups/create')} className="shadow-soft">
+                <Plus className="mr-2 h-4 w-4" />
+                Create Group
+              </Button>
+            </div>
+          </div>
         </div>
 
         {/* Quick Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <Card className="animate-fade-in">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Active Groups
-              </CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              {loading ? (
-                <Skeleton className="h-8 w-12" />
-              ) : (
-                <p className="text-2xl font-bold">{groups.length}</p>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="animate-fade-in" style={{ animationDelay: '0.1s' }}>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Total Contributions
-              </CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              {loading ? (
-                <Skeleton className="h-8 w-16" />
-              ) : (
-                <p className="text-2xl font-bold text-green-600">
-                  ${stats.totalContributions.toLocaleString()}
-                </p>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="animate-fade-in" style={{ animationDelay: '0.2s' }}>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Next Payment Due
-              </CardTitle>
-              <Calendar className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              {loading ? (
-                <Skeleton className="h-8 w-20" />
-              ) : stats.nextPaymentDue ? (
-                <div>
-                  <p className="text-2xl font-bold">{format(stats.nextPaymentDue, 'MMM d')}</p>
-                  <p className="text-xs text-muted-foreground">{stats.nextPaymentGroup}</p>
-                </div>
-              ) : (
-                <p className="text-2xl font-bold text-muted-foreground">—</p>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+        <StatCardGrid className="mb-8">
+          <StatCard
+            title="Active Groups"
+            value={groups.length}
+            icon={Users}
+            variant="default"
+            loading={loading}
+            subtitle={groups.length === 1 ? 'savings circle' : 'savings circles'}
+          />
+          <StatCard
+            title="Total Contributions"
+            value={`$${stats.totalContributions.toLocaleString()}`}
+            icon={TrendingUp}
+            variant="success"
+            loading={loading}
+            subtitle="verified payments"
+          />
+          <StatCard
+            title="Next Payment Due"
+            value={stats.nextPaymentDue ? format(stats.nextPaymentDue, 'MMM d') : '—'}
+            icon={Calendar}
+            variant={stats.nextPaymentDue ? 'warning' : 'default'}
+            loading={loading}
+            subtitle={stats.nextPaymentGroup || 'No upcoming payments'}
+          />
+        </StatCardGrid>
 
         {/* Groups Section */}
         <div className="mb-8">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-xl font-semibold">Your Groups</h3>
-            <Button onClick={() => navigate('/groups/create')}>
-              <Plus className="mr-2 h-4 w-4" />
-              Create Group
-            </Button>
+          <div className="flex justify-between items-center mb-6">
+            <div>
+              <h3 className="text-xl font-semibold text-foreground">Your Groups</h3>
+              <p className="text-sm text-muted-foreground">Manage and track your savings circles</p>
+            </div>
           </div>
 
           {loading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {[1, 2, 3].map((i) => (
-                <Card key={i}>
+                <Card key={i} className="card-elevated">
                   <CardHeader>
                     <Skeleton className="h-5 w-32" />
                     <Skeleton className="h-4 w-24" />
                   </CardHeader>
                   <CardContent>
-                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-full mb-2" />
+                    <Skeleton className="h-8 w-20" />
                   </CardContent>
                 </Card>
               ))}
             </div>
           ) : groups.length === 0 ? (
-            <Card className="animate-fade-in">
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4">
-                  <Users className="h-8 w-8 text-muted-foreground" />
-                </div>
-                <CardTitle className="mb-2">No groups yet</CardTitle>
-                <CardDescription className="text-center mb-4">
-                  Create a new savings group or join one using an invite link
-                </CardDescription>
-                <Button onClick={() => navigate('/groups/create')}>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Create Your First Group
-                </Button>
-              </CardContent>
-            </Card>
+            <EmptyState
+              type="groups"
+              action={{
+                label: 'Create Your First Group',
+                onClick: () => navigate('/groups/create'),
+                icon: Plus
+              }}
+              className="card-elevated"
+            />
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {groups.map((group) => (
-                <Card
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {groups.map((group, index) => (
+                <GroupCard
                   key={group.id}
-                  className="cursor-pointer hover:shadow-md transition-shadow animate-fade-in"
+                  group={group}
+                  isPresident={group.president_id === user?.id}
                   onClick={() => navigate(`/groups/${group.id}`)}
-                >
-                  <CardHeader>
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <CardTitle className="text-lg">{group.name}</CardTitle>
-                        <CardDescription className="capitalize">
-                          {group.frequency} • ${group.contribution_amount}
-                        </CardDescription>
-                      </div>
-                      <ChevronRight className="h-5 w-5 text-muted-foreground" />
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      {group.president_id === user?.id && (
-                        <span className="bg-primary/10 text-primary px-2 py-1 rounded-full text-xs font-medium">
-                          President
-                        </span>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
+                  delay={index * 0.05}
+                />
               ))}
             </div>
           )}
@@ -501,17 +477,20 @@ export default function DashboardPage() {
           <div className="mb-8">
             <button
               onClick={() => setShowArchived(!showArchived)}
-              className="flex items-center gap-2 text-muted-foreground hover:text-foreground mb-4 transition-colors"
+              className="flex items-center gap-2 text-muted-foreground hover:text-foreground mb-4 transition-colors group"
             >
-              <Archive className="h-4 w-4" />
-              <span className="font-medium">Archived Groups ({archivedGroups.length})</span>
+              <div className="p-1.5 rounded-lg bg-muted group-hover:bg-muted/80 transition-colors">
+                <Archive className="h-4 w-4" />
+              </div>
+              <span className="font-medium">Archived Groups</span>
+              <Badge variant="secondary" className="ml-1">{archivedGroups.length}</Badge>
               {showArchived ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
             </button>
 
             {showArchived && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {archivedGroups.map((group) => (
-                  <Card key={group.id} className="opacity-75 animate-fade-in">
+                  <Card key={group.id} className="border-dashed opacity-75 hover:opacity-100 transition-opacity animate-fade-in">
                     <CardHeader>
                       <div className="flex justify-between items-start">
                         <div>
@@ -520,12 +499,15 @@ export default function DashboardPage() {
                             {group.frequency} • ${group.contribution_amount}
                           </CardDescription>
                         </div>
-                        <Archive className="h-5 w-5 text-muted-foreground" />
+                        <div className="p-2 rounded-lg bg-muted">
+                          <Archive className="h-4 w-4 text-muted-foreground" />
+                        </div>
                       </div>
                     </CardHeader>
                     <CardContent>
-                      <p className="text-xs text-muted-foreground mb-3">
-                        Archived on {format(new Date(group.archived_at!), 'MMM d, yyyy')}
+                      <p className="text-xs text-muted-foreground mb-3 flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        Archived {formatDistanceToNow(new Date(group.archived_at!), { addSuffix: true })}
                       </p>
                       
                       {group.president_id === user?.id && (
@@ -577,5 +559,63 @@ export default function DashboardPage() {
         )}
       </main>
     </div>
+  );
+}
+
+// Group Card Component
+function GroupCard({ 
+  group, 
+  isPresident, 
+  onClick,
+  delay = 0 
+}: { 
+  group: Group; 
+  isPresident: boolean;
+  onClick: () => void;
+  delay?: number;
+}) {
+  return (
+    <Card
+      className={cn(
+        "card-interactive cursor-pointer animate-fade-in group",
+        "hover:shadow-soft-lg hover:border-primary/20"
+      )}
+      style={{ animationDelay: `${delay}s` }}
+      onClick={onClick}
+    >
+      <CardHeader className="pb-3">
+        <div className="flex justify-between items-start">
+          <div className="flex-1 min-w-0">
+            <CardTitle className="text-lg truncate group-hover:text-primary transition-colors">
+              {group.name}
+            </CardTitle>
+            <CardDescription className="capitalize flex items-center gap-2 mt-1">
+              <span className="inline-flex items-center gap-1">
+                <Calendar className="h-3 w-3" />
+                {group.frequency}
+              </span>
+              <span className="text-muted-foreground/50">•</span>
+              <span className="inline-flex items-center gap-1">
+                <DollarSign className="h-3 w-3" />
+                {group.contribution_amount}
+              </span>
+            </CardDescription>
+          </div>
+          <div className="p-2 rounded-lg bg-muted group-hover:bg-primary/10 transition-colors">
+            <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="pt-0">
+        <div className="flex items-center gap-2">
+          {isPresident && (
+            <Badge variant="default" className="bg-primary/10 text-primary hover:bg-primary/20 border-0">
+              <Sparkles className="h-3 w-3 mr-1" />
+              President
+            </Badge>
+          )}
+        </div>
+      </CardContent>
+    </Card>
   );
 }
