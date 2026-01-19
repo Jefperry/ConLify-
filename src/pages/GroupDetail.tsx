@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft, Users, Copy, Check, Calendar, DollarSign, 
   Crown, AlertCircle, CheckCircle, Clock, XCircle, Loader2,
-  UserPlus, Settings, Shield, User, Play, Timer, Filter
+  UserPlus, Settings, Shield, User, Play, Timer, Filter, StopCircle, RotateCcw, Lock
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -20,6 +20,7 @@ import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { closeCycle, restoreMember } from '@/lib/cycleManagement';
 import { Group, GroupMember, Profile, PaymentCycle, PaymentLog, MemberStatus, PaymentStatus, MemberRole } from '@/types/database';
 
 interface MemberWithProfile extends GroupMember {
@@ -48,6 +49,8 @@ export default function GroupDetail() {
   const [paymentFilter, setPaymentFilter] = useState<'all' | PaymentStatus>('all');
   const [verifyingId, setVerifyingId] = useState<string | null>(null);
   const [rejectingId, setRejectingId] = useState<string | null>(null);
+  const [closingCycle, setClosingCycle] = useState(false);
+  const [restoringMemberId, setRestoringMemberId] = useState<string | null>(null);
 
   const isPresident = group?.president_id === user?.id;
 
@@ -395,6 +398,74 @@ export default function GroupDetail() {
     setCycleDialogOpen(true);
   };
 
+  // Close the current cycle and handle missed payments
+  const handleCloseCycle = async () => {
+    if (!activeCycle || !group) return;
+
+    setClosingCycle(true);
+    try {
+      const result = await closeCycle(activeCycle.id, group.id);
+
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+
+      const messages = [];
+      if (result.missedPayments > 0) {
+        messages.push(`${result.missedPayments} missed payment(s) recorded`);
+      }
+      if (result.lockedMembers.length > 0) {
+        messages.push(`${result.lockedMembers.length} member(s) locked due to 3+ missed payments`);
+      }
+
+      toast({
+        title: "Cycle Closed",
+        description: messages.length > 0 ? messages.join('. ') : "All payments were verified!",
+      });
+
+      fetchGroupData();
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Failed to close cycle";
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setClosingCycle(false);
+    }
+  };
+
+  // Restore a locked member
+  const handleRestoreMember = async (memberId: string) => {
+    if (!group) return;
+
+    setRestoringMemberId(memberId);
+    try {
+      const result = await restoreMember(memberId, group.id);
+
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+
+      toast({
+        title: "Member Restored",
+        description: `Member has been restored and moved to position #${result.newPosition} in the queue.`,
+      });
+
+      fetchGroupData();
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Failed to restore member";
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setRestoringMemberId(null);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background">
@@ -629,30 +700,93 @@ export default function GroupDetail() {
                 </CardHeader>
                 <CardContent>
                   <div className="divide-y divide-border">
-                    {members.map((member) => (
-                      <div key={member.id} className="py-4 flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-sm font-medium text-primary">
-                            {member.queue_position}
-                          </div>
-                          <div>
-                            <p className="font-medium flex items-center gap-2">
-                              {member.profile?.name || member.profile?.email}
-                            </p>
-                            <p className="text-sm text-muted-foreground">{member.profile?.email}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          {getRoleBadge(member.role)}
-                          {member.missed_payment_count > 0 && (
-                            <Badge variant="outline" className="text-warning border-warning/20">
-                              {member.missed_payment_count} missed
-                            </Badge>
+                    {members.map((member) => {
+                      const isLocked = member.status === 'locked';
+                      return (
+                        <div 
+                          key={member.id} 
+                          className={cn(
+                            "py-4 flex items-center justify-between",
+                            isLocked && "opacity-60 bg-destructive/5 -mx-6 px-6"
                           )}
-                          {getStatusBadge(member.status)}
+                        >
+                          <div className="flex items-center gap-4">
+                            <div className={cn(
+                              "w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium",
+                              isLocked 
+                                ? "bg-destructive/10 text-destructive" 
+                                : "bg-primary/10 text-primary"
+                            )}>
+                              {isLocked ? <Lock className="h-4 w-4" /> : member.queue_position}
+                            </div>
+                            <div>
+                              <p className="font-medium flex items-center gap-2">
+                                {member.profile?.name || member.profile?.email}
+                                {isLocked && <span className="text-xs text-destructive">(Locked)</span>}
+                              </p>
+                              <p className="text-sm text-muted-foreground">{member.profile?.email}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            {getRoleBadge(member.role)}
+                            {member.missed_payment_count > 0 && (
+                              <Badge variant="outline" className="text-warning border-warning/20">
+                                {member.missed_payment_count} missed
+                              </Badge>
+                            )}
+                            {getStatusBadge(member.status)}
+                            
+                            {/* Restore Button for Locked Members (President Only) */}
+                            {isPresident && isLocked && (
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button 
+                                    size="sm" 
+                                    variant="outline"
+                                    className="text-primary"
+                                    disabled={restoringMemberId === member.id}
+                                  >
+                                    {restoringMemberId === member.id ? (
+                                      <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                      <>
+                                        <RotateCcw className="h-4 w-4 mr-1" />
+                                        Restore
+                                      </>
+                                    )}
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Restore Member</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Are you sure you want to restore{' '}
+                                      <strong>{member.profile?.name || member.profile?.email}</strong>?
+                                      <br /><br />
+                                      This will:
+                                      <ul className="list-disc list-inside mt-2 space-y-1">
+                                        <li>Set their status back to Active</li>
+                                        <li>Reset their missed payment count to 0</li>
+                                        <li>Move them to the end of the queue</li>
+                                      </ul>
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction
+                                      onClick={() => handleRestoreMember(member.id)}
+                                    >
+                                      <RotateCcw className="mr-2 h-4 w-4" />
+                                      Restore Member
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </CardContent>
               </Card>
@@ -661,13 +795,67 @@ export default function GroupDetail() {
             <TabsContent value="payments" className="mt-4">
               <Card>
                 <CardHeader>
-                  <CardTitle>Payment Status</CardTitle>
-                  <CardDescription>
-                    {activeCycle 
-                      ? `Current cycle due: ${format(new Date(activeCycle.due_date), 'PPP')}`
-                      : 'No active payment cycle'
-                    }
-                  </CardDescription>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle>Payment Status</CardTitle>
+                      <CardDescription>
+                        {activeCycle 
+                          ? `Current cycle due: ${format(new Date(activeCycle.due_date), 'PPP')}`
+                          : 'No active payment cycle'
+                        }
+                      </CardDescription>
+                    </div>
+                    {/* Close Cycle Button - Only for president when cycle is active */}
+                    {isPresident && activeCycle && (
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            className="text-destructive hover:text-destructive"
+                            disabled={closingCycle}
+                          >
+                            {closingCycle ? (
+                              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                            ) : (
+                              <StopCircle className="h-4 w-4 mr-2" />
+                            )}
+                            Close Cycle
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Close Payment Cycle</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Are you sure you want to close this payment cycle?
+                              <br /><br />
+                              This will:
+                              <ul className="list-disc list-inside mt-2 space-y-1">
+                                <li>Mark the cycle as closed</li>
+                                <li>Increment missed payment count for unpaid/rejected members</li>
+                                <li>Lock any members with 3+ missed payments</li>
+                              </ul>
+                              <br />
+                              <strong className="text-destructive">
+                                {paymentLogs.filter(l => l.status === 'unpaid' || l.status === 'rejected').length} member(s) 
+                                have unpaid/rejected payments.
+                              </strong>
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={handleCloseCycle}
+                              className="bg-destructive hover:bg-destructive/90"
+                            >
+                              <StopCircle className="mr-2 h-4 w-4" />
+                              Close Cycle
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    )}
+                  </div>
                 </CardHeader>
                 <CardContent>
                   {!activeCycle ? (
