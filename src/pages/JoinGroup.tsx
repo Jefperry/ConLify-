@@ -10,6 +10,13 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { MemberRole } from '@/types/database';
+import { 
+  checkRateLimit, 
+  RATE_LIMITS, 
+  getRateLimitIdentifier,
+  RateLimitError,
+  sanitizeString
+} from '@/lib/security';
 
 export default function JoinGroup() {
   const navigate = useNavigate();
@@ -18,6 +25,7 @@ export default function JoinGroup() {
   const [loading, setLoading] = useState(false);
   const [inviteCode, setInviteCode] = useState('');
   const [selectedRole, setSelectedRole] = useState<MemberRole>('member');
+  const [fieldError, setFieldError] = useState('');
   const [groupPreview, setGroupPreview] = useState<{
     id: string;
     name: string;
@@ -27,7 +35,13 @@ export default function JoinGroup() {
   } | null>(null);
 
   const lookupGroup = async () => {
-    if (!inviteCode.trim()) {
+    setFieldError('');
+    
+    // Sanitize and validate invite code
+    const sanitizedCode = inviteCode.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+    
+    if (!sanitizedCode) {
+      setFieldError('Please enter a valid invite code');
       toast({
         title: "Enter invite code",
         description: "Please enter the invite code to find the group",
@@ -36,13 +50,26 @@ export default function JoinGroup() {
       return;
     }
 
+    if (sanitizedCode.length < 6 || sanitizedCode.length > 20) {
+      setFieldError('Invite code must be between 6 and 20 characters');
+      return;
+    }
+
     setLoading(true);
     try {
+      // Rate limiting check
+      const identifier = getRateLimitIdentifier(user?.id);
+      const { allowed, retryAfterMs } = checkRateLimit(identifier, RATE_LIMITS.joinGroup);
+      
+      if (!allowed) {
+        throw new RateLimitError(retryAfterMs!);
+      }
+
       // Use ilike for case-insensitive matching
       const { data: group, error } = await supabase
         .from('groups')
         .select('id, name, frequency, contribution_amount')
-        .ilike('invite_code', inviteCode.trim())
+        .ilike('invite_code', sanitizedCode)
         .maybeSingle();
 
       if (error) throw error;
@@ -67,12 +94,20 @@ export default function JoinGroup() {
         memberCount: count || 0,
       });
     } catch (error: any) {
-      console.error('Error looking up group:', error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to find group",
-        variant: "destructive",
-      });
+      if (error instanceof RateLimitError) {
+        toast({
+          title: "Rate limited",
+          description: error.message,
+          variant: "destructive",
+        });
+      } else {
+        console.error('Error looking up group:', error);
+        toast({
+          title: "Error",
+          description: error.message || "Failed to find group",
+          variant: "destructive",
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -83,6 +118,14 @@ export default function JoinGroup() {
 
     setLoading(true);
     try {
+      // Rate limiting check
+      const identifier = getRateLimitIdentifier(user.id);
+      const { allowed, retryAfterMs } = checkRateLimit(identifier, RATE_LIMITS.joinGroup);
+      
+      if (!allowed) {
+        throw new RateLimitError(retryAfterMs!);
+      }
+
       // Check if already a member
       const { data: existingMember } = await supabase
         .from('group_members')
@@ -151,12 +194,20 @@ export default function JoinGroup() {
 
       navigate(`/groups/${groupPreview.id}`);
     } catch (error: any) {
-      console.error('Error joining group:', error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to join group",
-        variant: "destructive",
-      });
+      if (error instanceof RateLimitError) {
+        toast({
+          title: "Rate limited",
+          description: error.message,
+          variant: "destructive",
+        });
+      } else {
+        console.error('Error joining group:', error);
+        toast({
+          title: "Error",
+          description: error.message || "Failed to join group",
+          variant: "destructive",
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -194,10 +245,17 @@ export default function JoinGroup() {
                   <Label htmlFor="inviteCode">Invite Code</Label>
                   <Input
                     id="inviteCode"
-                    placeholder="e.g., abc12def"
+                    placeholder="e.g., ABC12DEF"
                     value={inviteCode}
-                    onChange={(e) => setInviteCode(e.target.value)}
+                    onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
                     disabled={loading}
+                    maxLength={20}
+                    className={fieldError ? 'border-destructive' : ''}
+                    aria-invalid={!!fieldError}
+                  />
+                  {fieldError && (
+                    <p className="text-sm text-destructive">{fieldError}</p>
+                  )}
                     className="font-mono text-lg tracking-wider"
                   />
                 </div>

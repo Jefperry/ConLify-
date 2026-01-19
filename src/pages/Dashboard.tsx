@@ -25,11 +25,27 @@ import {
   ChevronRight,
   User,
   Settings,
-  UserPlus
+  UserPlus,
+  Archive,
+  RotateCcw,
+  Trash2,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import type { Group } from '@/types/database';
+import { 
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
 interface DashboardStats {
   totalContributions: number;
@@ -41,6 +57,8 @@ export default function DashboardPage() {
   const { user, signOut, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [groups, setGroups] = useState<Group[]>([]);
+  const [archivedGroups, setArchivedGroups] = useState<Group[]>([]);
+  const [showArchived, setShowArchived] = useState(false);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<DashboardStats>({
     totalContributions: 0,
@@ -93,11 +111,16 @@ export default function DashboardPage() {
 
       // Combine and deduplicate
       const allGroups = [...(presidentGroups || []), ...memberGroups];
-      const uniqueGroups = Array.from(new Map(allGroups.map((g) => [g.id, g])).values());
+      const uniqueGroups = Array.from(new Map(allGroups.map((g) => [g.id, g])).values()) as Group[];
       
-      setGroups(uniqueGroups as Group[]);
+      // Separate active and archived groups
+      const active = uniqueGroups.filter(g => !g.archived_at);
+      const archived = uniqueGroups.filter(g => g.archived_at);
+      
+      setGroups(active);
+      setArchivedGroups(archived);
 
-      // Calculate dashboard stats
+      // Calculate dashboard stats (only for active groups)
       await calculateStats(uniqueGroups as Group[]);
     } catch (error: any) {
       console.error('Error fetching groups:', error);
@@ -198,6 +221,70 @@ export default function DashboardPage() {
   const handleSignOut = async () => {
     await signOut();
     navigate('/');
+  };
+
+  const handleRestoreGroup = async (groupId: string) => {
+    try {
+      const { error } = await supabase
+        .from('groups')
+        .update({ archived_at: null, updated_at: new Date().toISOString() })
+        .eq('id', groupId);
+
+      if (error) throw error;
+
+      toast.success('Group restored successfully');
+      fetchGroups();
+    } catch (error) {
+      console.error('Error restoring group:', error);
+      toast.error('Failed to restore group');
+    }
+  };
+
+  const handleDeleteGroup = async (groupId: string) => {
+    try {
+      // Delete all related data first (in order due to foreign keys)
+      // 1. Get all cycles for this group
+      const { data: cycles } = await supabase
+        .from('payment_cycles')
+        .select('id')
+        .eq('group_id', groupId);
+
+      const cycleIds = cycles?.map(c => c.id) || [];
+
+      // 2. Delete payment logs for these cycles
+      if (cycleIds.length > 0) {
+        await supabase
+          .from('payment_logs')
+          .delete()
+          .in('cycle_id', cycleIds);
+      }
+
+      // 3. Delete payment cycles
+      await supabase
+        .from('payment_cycles')
+        .delete()
+        .eq('group_id', groupId);
+
+      // 4. Delete group members
+      await supabase
+        .from('group_members')
+        .delete()
+        .eq('group_id', groupId);
+
+      // 5. Delete the group
+      const { error } = await supabase
+        .from('groups')
+        .delete()
+        .eq('id', groupId);
+
+      if (error) throw error;
+
+      toast.success('Group permanently deleted');
+      fetchGroups();
+    } catch (error) {
+      console.error('Error deleting group:', error);
+      toast.error('Failed to delete group');
+    }
   };
 
   if (authLoading) {
@@ -408,6 +495,86 @@ export default function DashboardPage() {
             </div>
           )}
         </div>
+
+        {/* Archived Groups Section */}
+        {archivedGroups.length > 0 && (
+          <div className="mb-8">
+            <button
+              onClick={() => setShowArchived(!showArchived)}
+              className="flex items-center gap-2 text-muted-foreground hover:text-foreground mb-4 transition-colors"
+            >
+              <Archive className="h-4 w-4" />
+              <span className="font-medium">Archived Groups ({archivedGroups.length})</span>
+              {showArchived ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </button>
+
+            {showArchived && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {archivedGroups.map((group) => (
+                  <Card key={group.id} className="opacity-75 animate-fade-in">
+                    <CardHeader>
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <CardTitle className="text-lg text-muted-foreground">{group.name}</CardTitle>
+                          <CardDescription className="capitalize">
+                            {group.frequency} • ${group.contribution_amount}
+                          </CardDescription>
+                        </div>
+                        <Archive className="h-5 w-5 text-muted-foreground" />
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-xs text-muted-foreground mb-3">
+                        Archived on {format(new Date(group.archived_at!), 'MMM d, yyyy')}
+                      </p>
+                      
+                      {group.president_id === user?.id && (
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleRestoreGroup(group.id)}
+                            className="flex-1"
+                          >
+                            <RotateCcw className="h-4 w-4 mr-1" />
+                            Restore
+                          </Button>
+                          
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="destructive" size="sm" className="flex-1">
+                                <Trash2 className="h-4 w-4 mr-1" />
+                                Delete
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Permanently Delete "{group.name}"?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  This action cannot be undone. This will permanently delete the group,
+                                  all members, payment cycles, and payment history.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => handleDeleteGroup(group.id)}
+                                  className="bg-destructive hover:bg-destructive/90"
+                                >
+                                  Delete Forever
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </main>
     </div>
   );

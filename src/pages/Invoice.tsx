@@ -310,9 +310,11 @@ export default function Invoice() {
               <div className="flex items-center justify-between py-3 border-t">
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <Calendar className="h-4 w-4" />
-                  <span>Due Date</span>
+                  <span>Cycle Period</span>
                 </div>
-                <span className="font-medium">{format(new Date(cycle.due_date), 'PPP')}</span>
+                <span className="font-medium">
+                  {format(new Date(cycle.start_date), 'MMM d')} → {format(new Date(cycle.due_date), 'MMM d, yyyy')}
+                </span>
               </div>
               <div className="flex items-center justify-between py-3 border-t">
                 <div className="flex items-center gap-2 text-muted-foreground">

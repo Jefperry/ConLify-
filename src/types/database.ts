@@ -21,6 +21,7 @@ export interface Group {
   contribution_amount: number;
   president_email: string;
   invite_code: string;
+  archived_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -40,6 +41,7 @@ export interface GroupMember {
 export interface PaymentCycle {
   id: string;
   group_id: string;
+  start_date: string;
   due_date: string;
   status: CycleStatus;
   created_at: string;

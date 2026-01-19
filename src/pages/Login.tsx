@@ -8,27 +8,72 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { Loader2, Eye, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
+import { 
+  validateSchema, 
+  SCHEMAS, 
+  checkRateLimit, 
+  RATE_LIMITS, 
+  getRateLimitIdentifier,
+  RateLimitError,
+  ValidationError 
+} from '@/lib/security';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const { signIn } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setFieldErrors({});
     setLoading(true);
 
-    const { error } = await signIn(email, password);
+    try {
+      // Rate limiting check
+      const identifier = getRateLimitIdentifier();
+      const { allowed, retryAfterMs } = checkRateLimit(identifier, RATE_LIMITS.login);
+      
+      if (!allowed) {
+        throw new RateLimitError(retryAfterMs!);
+      }
 
-    if (error) {
-      toast.error(error.message);
+      // Validate and sanitize input
+      const validation = validateSchema({ email, password }, SCHEMAS.login);
+      
+      if (!validation.valid) {
+        throw new ValidationError(validation.errors);
+      }
+
+      const sanitizedData = validation.sanitized as { email: string; password: string };
+      const { error } = await signIn(sanitizedData.email, sanitizedData.password);
+
+      if (error) {
+        toast.error(error.message);
+        setLoading(false);
+      } else {
+        toast.success('Welcome back!');
+        navigate('/dashboard');
+      }
+    } catch (err) {
+      if (err instanceof RateLimitError) {
+        toast.error(err.message);
+      } else if (err instanceof ValidationError) {
+        // Map errors to fields for display
+        const errors: Record<string, string> = {};
+        err.fieldErrors.forEach(error => {
+          if (error.toLowerCase().includes('email')) errors.email = error;
+          if (error.toLowerCase().includes('password')) errors.password = error;
+        });
+        setFieldErrors(errors);
+        toast.error('Please fix the errors below');
+      } else {
+        toast.error('An unexpected error occurred');
+      }
       setLoading(false);
-    } else {
-      toast.success('Welcome back!');
-      navigate('/dashboard');
     }
   };
 
@@ -62,7 +107,13 @@ export default function LoginPage() {
                   onChange={(e) => setEmail(e.target.value)}
                   required
                   disabled={loading}
+                  maxLength={254}
+                  className={fieldErrors.email ? 'border-destructive' : ''}
+                  aria-invalid={!!fieldErrors.email}
                 />
+                {fieldErrors.email && (
+                  <p className="text-sm text-destructive">{fieldErrors.email}</p>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -76,6 +127,9 @@ export default function LoginPage() {
                     onChange={(e) => setPassword(e.target.value)}
                     required
                     disabled={loading}
+                    maxLength={128}
+                    className={fieldErrors.password ? 'border-destructive' : ''}
+                    aria-invalid={!!fieldErrors.password}
                   />
                   <Button
                     type="button"
@@ -87,6 +141,9 @@ export default function LoginPage() {
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </Button>
                 </div>
+                {fieldErrors.password && (
+                  <p className="text-sm text-destructive">{fieldErrors.password}</p>
+                )}
               </div>
             </CardContent>
 
