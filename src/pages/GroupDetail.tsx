@@ -4,7 +4,7 @@ import {
   ArrowLeft, Users, Copy, Check, Calendar, DollarSign, 
   Crown, AlertCircle, CheckCircle, Clock, XCircle, Loader2,
   UserPlus, Settings, Shield, User, Play, Timer, Filter, StopCircle, RotateCcw, Lock,
-  ChevronUp, ChevronDown
+  ChevronUp, ChevronDown, PiggyBank, TrendingUp, Sparkles, Wallet
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,6 +16,10 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Progress } from '@/components/ui/progress';
+import { StatCard, StatCardGrid } from '@/components/ui/stat-card';
+import { ProgressRing } from '@/components/ui/progress-ring';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import { format, differenceInDays, differenceInHours, addDays, addWeeks, addMonths } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
@@ -616,16 +620,24 @@ export default function GroupDetail() {
   if (loading) {
     return (
       <div className="min-h-screen bg-background">
-        <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
-          <div className="container mx-auto px-4 py-4 flex items-center gap-4">
-            <Skeleton className="h-10 w-10" />
-            <Skeleton className="h-6 w-48" />
+        <header className="border-b border-border/50 bg-background/80 backdrop-blur-md sticky top-0 z-50">
+          <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center gap-4">
+            <Skeleton className="h-10 w-10 rounded-xl" />
+            <div className="space-y-2">
+              <Skeleton className="h-5 w-48" />
+              <Skeleton className="h-4 w-32" />
+            </div>
           </div>
         </header>
-        <main className="container mx-auto px-4 py-8">
+        <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="grid gap-6">
-            <Skeleton className="h-48 w-full" />
-            <Skeleton className="h-64 w-full" />
+            <Skeleton className="h-32 w-full rounded-2xl" />
+            <div className="grid sm:grid-cols-3 gap-4">
+              <Skeleton className="h-24 rounded-2xl" />
+              <Skeleton className="h-24 rounded-2xl" />
+              <Skeleton className="h-24 rounded-2xl" />
+            </div>
+            <Skeleton className="h-64 w-full rounded-2xl" />
           </div>
         </main>
       </div>
@@ -635,10 +647,13 @@ export default function GroupDetail() {
   if (!group) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
-          <h2 className="text-xl font-semibold mb-2">Group not found</h2>
-          <Button asChild>
+        <div className="text-center card-elevated p-12 max-w-md mx-auto">
+          <div className="w-16 h-16 rounded-2xl bg-destructive/10 flex items-center justify-center mx-auto mb-6">
+            <AlertCircle className="h-8 w-8 text-destructive" />
+          </div>
+          <h2 className="text-xl font-semibold mb-2 text-foreground">Group not found</h2>
+          <p className="text-muted-foreground mb-6">This group may have been deleted or you don't have access.</p>
+          <Button asChild className="shadow-soft">
             <Link to="/dashboard">Back to Dashboard</Link>
           </Button>
         </div>
@@ -649,55 +664,86 @@ export default function GroupDetail() {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+      <header className="border-b border-border/50 bg-background/80 backdrop-blur-md sticky top-0 z-50">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" asChild>
+            <Button variant="ghost" size="icon" asChild className="rounded-xl hover:bg-muted">
               <Link to="/dashboard">
                 <ArrowLeft className="h-5 w-5" />
               </Link>
             </Button>
+            <Avatar className="h-11 w-11 ring-2 ring-primary/10">
+              <AvatarImage src={group.photo_url || undefined} alt={group.name} />
+              <AvatarFallback className="bg-primary/10 text-primary">
+                <Users className="h-5 w-5" />
+              </AvatarFallback>
+            </Avatar>
             <div>
-              <h1 className="text-xl font-semibold flex items-center gap-2">
+              <h1 className="text-xl font-semibold flex items-center gap-2 text-foreground">
                 {group.name}
-                {isPresident && <Crown className="h-4 w-4 text-warning" />}
+                {isPresident && (
+                  <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/20 gap-1">
+                    <Crown className="h-3 w-3" />
+                    President
+                  </Badge>
+                )}
               </h1>
-              <p className="text-sm text-muted-foreground">
-                {group.frequency === 'weekly' ? 'Weekly' : 'Monthly'} • ${group.contribution_amount} contribution
+              <p className="text-sm text-muted-foreground flex items-center gap-2">
+                <span className="inline-flex items-center gap-1">
+                  <Calendar className="h-3 w-3" />
+                  {group.frequency === 'weekly' ? 'Weekly' : 'Monthly'}
+                </span>
+                <span className="text-muted-foreground/50">•</span>
+                <span className="inline-flex items-center gap-1">
+                  <DollarSign className="h-3 w-3" />
+                  {group.contribution_amount} contribution
+                </span>
               </p>
             </div>
           </div>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={() => navigate(`/groups/${id}/settings`)}
-          >
-            <Settings className="h-4 w-4 mr-2" />
-            Settings
-          </Button>
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => navigate(`/groups/${id}/settings`)}
+              className="shadow-soft"
+            >
+              <Settings className="h-4 w-4 mr-2" />
+              Settings
+            </Button>
+          </div>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8">
+      <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid gap-6">
           {/* Invite Code Card */}
-          <Card>
-            <CardHeader className="pb-3">
+          <Card className="card-elevated overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5 pointer-events-none" />
+            <CardHeader className="pb-3 relative">
               <CardTitle className="text-base flex items-center gap-2">
-                <UserPlus className="h-4 w-4 text-primary" />
+                <div className="p-2 rounded-lg bg-primary/10">
+                  <UserPlus className="h-4 w-4 text-primary" />
+                </div>
                 Invite Members
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="relative">
               <div className="flex items-center gap-3">
-                <div className="flex-1 bg-muted rounded-lg px-4 py-3 font-mono text-lg tracking-wider">
+                <div className="flex-1 bg-muted/50 border border-border/50 rounded-xl px-4 py-3 font-mono text-lg tracking-wider text-center">
                   {group.invite_code}
                 </div>
-                <Button variant="outline" size="icon" onClick={copyInviteCode}>
-                  {copied ? <Check className="h-4 w-4 text-primary" /> : <Copy className="h-4 w-4" />}
+                <Button 
+                  variant="outline" 
+                  size="icon" 
+                  onClick={copyInviteCode}
+                  className="h-12 w-12 rounded-xl shadow-soft hover:shadow-soft-md transition-all"
+                >
+                  {copied ? <Check className="h-5 w-5 text-primary" /> : <Copy className="h-5 w-5" />}
                 </Button>
               </div>
-              <p className="text-sm text-muted-foreground mt-2">
+              <p className="text-sm text-muted-foreground mt-3">
                 Share this code with people you want to invite to the group
               </p>
             </CardContent>
@@ -705,56 +751,57 @@ export default function GroupDetail() {
 
           {/* Stats Cards */}
           <div className="grid sm:grid-cols-3 gap-4">
-            <Card>
+            <Card className="card-elevated group hover:shadow-soft-lg transition-all">
               <CardContent className="pt-6">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-primary/10">
-                    <Users className="h-5 w-5 text-primary" />
+                <div className="flex items-center gap-4">
+                  <div className="p-3 rounded-xl bg-primary/10 group-hover:bg-primary/15 transition-colors">
+                    <Users className="h-6 w-6 text-primary" />
                   </div>
                   <div>
-                    <p className="text-2xl font-bold">{members.length}</p>
+                    <p className="text-3xl font-bold text-foreground">{members.length}</p>
                     <p className="text-sm text-muted-foreground">Members</p>
                   </div>
                 </div>
               </CardContent>
             </Card>
-            <Card>
+            <Card className="card-elevated group hover:shadow-soft-lg transition-all">
               <CardContent className="pt-6">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-primary/10">
-                    <DollarSign className="h-5 w-5 text-primary" />
+                <div className="flex items-center gap-4">
+                  <div className="p-3 rounded-xl bg-green-500/10 group-hover:bg-green-500/15 transition-colors">
+                    <Wallet className="h-6 w-6 text-green-600" />
                   </div>
                   <div>
-                    <p className="text-2xl font-bold">${(members.filter(m => m.status === 'active').length * group.contribution_amount).toFixed(2)}</p>
-                    <p className="text-sm text-muted-foreground">Expected Per Cycle</p>
+                    <p className="text-3xl font-bold text-foreground">${(members.filter(m => m.status === 'active').length * group.contribution_amount).toFixed(0)}</p>
+                    <p className="text-sm text-muted-foreground">Per Cycle</p>
                   </div>
                 </div>
               </CardContent>
             </Card>
             <Card className={cn(
-              activeCycle && cycleCountdown?.isOverdue && 'border-destructive',
-              activeCycle && cycleCountdown?.isPending && 'border-blue-500'
+              "card-elevated group hover:shadow-soft-lg transition-all",
+              activeCycle && cycleCountdown?.isOverdue && 'border-destructive/50',
+              activeCycle && cycleCountdown?.isPending && 'border-blue-500/50'
             )}>
               <CardContent className="pt-6">
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-4">
                   <div className={cn(
-                    "p-2 rounded-lg",
+                    "p-3 rounded-xl transition-colors",
                     activeCycle 
                       ? cycleCountdown?.isOverdue 
-                        ? "bg-destructive/10" 
+                        ? "bg-destructive/10 group-hover:bg-destructive/15" 
                         : cycleCountdown?.isPending
-                          ? "bg-blue-500/10"
-                          : "bg-primary/10"
+                          ? "bg-blue-500/10 group-hover:bg-blue-500/15"
+                          : "bg-amber-500/10 group-hover:bg-amber-500/15"
                       : "bg-muted"
                   )}>
                     <Timer className={cn(
-                      "h-5 w-5",
+                      "h-6 w-6",
                       activeCycle 
                         ? cycleCountdown?.isOverdue 
                           ? "text-destructive" 
                           : cycleCountdown?.isPending
                             ? "text-blue-500"
-                            : "text-primary"
+                            : "text-amber-500"
                         : "text-muted-foreground"
                     )} />
                   </div>
@@ -786,28 +833,30 @@ export default function GroupDetail() {
 
           {/* Next Payout Recipient Card */}
           {members.filter(m => m.status === 'active').length > 0 && (
-            <Card className="border-primary/20 bg-primary/5">
-              <CardContent className="pt-6">
+            <Card className="card-elevated border-primary/20 bg-gradient-to-br from-primary/5 via-card to-transparent overflow-hidden">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2" />
+              <CardContent className="pt-6 relative">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
-                    <div className="p-3 rounded-full bg-primary/10">
-                      <Crown className="h-6 w-6 text-primary" />
+                    <div className="p-4 rounded-2xl bg-primary/10 ring-4 ring-primary/5">
+                      <Crown className="h-8 w-8 text-primary" />
                     </div>
                     <div>
-                      <p className="text-sm text-muted-foreground">Next Payout Recipient</p>
-                      <p className="text-xl font-bold">
+                      <p className="text-sm text-muted-foreground font-medium">Next Payout Recipient</p>
+                      <p className="text-2xl font-bold text-foreground">
                         {(() => {
                           const activeMembers = members.filter(m => m.status === 'active');
                           const nextRecipient = activeMembers.sort((a, b) => a.queue_position - b.queue_position)[0];
                           return nextRecipient?.profile?.name || 'Unknown';
                         })()}
                       </p>
-                      <p className="text-sm text-muted-foreground">
-                        Queue Position #1 • Receives ${(members.filter(m => m.status === 'active').length * group.contribution_amount).toFixed(2)}
+                      <p className="text-sm text-muted-foreground flex items-center gap-2 mt-1">
+                        <Badge variant="secondary" className="font-normal">Queue Position #1</Badge>
+                        <span>Receives ${(members.filter(m => m.status === 'active').length * group.contribution_amount).toFixed(0)}</span>
                       </p>
                     </div>
                   </div>
-                  <div className="text-right">
+                  <div className="text-right hidden sm:block">
                     <p className="text-sm text-muted-foreground">
                       {group.frequency === 'weekly' ? 'Every Week' : 'Every Month'}
                     </p>
@@ -819,30 +868,37 @@ export default function GroupDetail() {
 
           {/* Payment Progress Bar - Only show when cycle is active */}
           {activeCycle && paymentLogs.length > 0 && (
-            <Card>
+            <Card className="card-elevated">
               <CardContent className="pt-6">
-                <div className="space-y-3">
+                <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <CheckCircle className="h-4 w-4 text-primary" />
-                      <span className="font-medium">Payment Progress</span>
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-primary/10">
+                        <TrendingUp className="h-5 w-5 text-primary" />
+                      </div>
+                      <div>
+                        <span className="font-semibold text-foreground">Payment Progress</span>
+                        <p className="text-sm text-muted-foreground">
+                          {paymentProgress.verified} of {paymentProgress.total} verified
+                        </p>
+                      </div>
                     </div>
-                    <span className="text-sm text-muted-foreground">
-                      {paymentProgress.verified} of {paymentProgress.total} verified
-                    </span>
+                    <div className="text-right">
+                      <span className="text-2xl font-bold text-primary">{paymentProgress.percentage}%</span>
+                    </div>
                   </div>
-                  <Progress value={paymentProgress.percentage} className="h-2" />
-                  <div className="flex gap-4 text-sm">
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-2 h-2 rounded-full bg-primary" />
+                  <Progress value={paymentProgress.percentage} className="h-3" />
+                  <div className="flex flex-wrap gap-4 text-sm">
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full bg-primary" />
                       <span className="text-muted-foreground">{paymentProgress.verified} Verified</span>
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-2 h-2 rounded-full bg-yellow-500" />
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full bg-amber-500" />
                       <span className="text-muted-foreground">{paymentProgress.pending} Pending</span>
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-2 h-2 rounded-full bg-muted-foreground" />
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full bg-muted-foreground/30" />
                       <span className="text-muted-foreground">{paymentProgress.unpaid} Unpaid</span>
                     </div>
                   </div>
@@ -853,35 +909,41 @@ export default function GroupDetail() {
 
           {/* View Invoice Card - Show for all members (including president) when cycle is active */}
           {activeCycle && (
-            <Card className="bg-primary/5 border-primary/20">
-              <CardContent className="pt-6">
+            <Card className="card-elevated bg-gradient-to-r from-primary/5 to-transparent border-primary/20">
+              <CardContent className="py-5">
                 <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">Your Payment Due</p>
-                    <p className="text-sm text-muted-foreground">
-                      ${group.contribution_amount} by {format(new Date(activeCycle.due_date), 'MMM d, yyyy')}
-                    </p>
-                    {/* Show current payment status for president */}
-                    {isPresident && (() => {
-                      const currentMember = members.find(m => m.user_id === user?.id);
-                      const myPaymentLog = paymentLogs.find(pl => pl.member_id === currentMember?.id);
-                      if (myPaymentLog) {
-                        const statusColors: Record<string, string> = {
-                          unpaid: 'text-muted-foreground',
-                          pending: 'text-yellow-600',
-                          verified: 'text-green-600',
-                          rejected: 'text-red-600'
-                        };
-                        return (
-                          <p className={`text-sm font-medium ${statusColors[myPaymentLog.status]}`}>
-                            Status: {myPaymentLog.status.charAt(0).toUpperCase() + myPaymentLog.status.slice(1)}
-                          </p>
-                        );
-                      }
-                      return null;
-                    })()}
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 rounded-xl bg-primary/10">
+                      <DollarSign className="h-6 w-6 text-primary" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-foreground">Your Payment Due</p>
+                      <p className="text-sm text-muted-foreground">
+                        ${group.contribution_amount} by {format(new Date(activeCycle.due_date), 'MMM d, yyyy')}
+                      </p>
+                      {/* Show current payment status for president */}
+                      {isPresident && (() => {
+                        const currentMember = members.find(m => m.user_id === user?.id);
+                        const myPaymentLog = paymentLogs.find(pl => pl.member_id === currentMember?.id);
+                        if (myPaymentLog) {
+                          const statusConfig: Record<string, { color: string; bg: string }> = {
+                            unpaid: { color: 'text-muted-foreground', bg: 'bg-muted' },
+                            pending: { color: 'text-amber-600', bg: 'bg-amber-500/10' },
+                            verified: { color: 'text-green-600', bg: 'bg-green-500/10' },
+                            rejected: { color: 'text-red-600', bg: 'bg-red-500/10' }
+                          };
+                          const config = statusConfig[myPaymentLog.status];
+                          return (
+                            <Badge variant="outline" className={cn("mt-1", config.color, config.bg)}>
+                              {myPaymentLog.status.charAt(0).toUpperCase() + myPaymentLog.status.slice(1)}
+                            </Badge>
+                          );
+                        }
+                        return null;
+                      })()}
+                    </div>
                   </div>
-                  <Button asChild>
+                  <Button asChild className="shadow-soft">
                     <Link to={`/groups/${id}/invoice/${activeCycle.id}`}>
                       <DollarSign className="mr-2 h-4 w-4" />
                       {isPresident ? 'Make Payment' : 'View Invoice'}
@@ -894,44 +956,63 @@ export default function GroupDetail() {
 
           {/* Tabs for Members and Payments */}
           <Tabs defaultValue="members" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="members">Members ({members.length})</TabsTrigger>
-              <TabsTrigger value="payments">Payments</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-2 h-12 p-1 bg-muted/50">
+              <TabsTrigger value="members" className="data-[state=active]:shadow-soft rounded-lg">
+                <Users className="h-4 w-4 mr-2" />
+                Members ({members.length})
+              </TabsTrigger>
+              <TabsTrigger value="payments" className="data-[state=active]:shadow-soft rounded-lg">
+                <DollarSign className="h-4 w-4 mr-2" />
+                Payments
+              </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="members" className="mt-4">
-              <Card>
+            <TabsContent value="members" className="mt-6">
+              <Card className="card-elevated">
                 <CardHeader>
-                  <CardTitle>Member Queue</CardTitle>
-                  <CardDescription>
-                    Members receive the pot in order of their queue position
-                  </CardDescription>
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-primary/10">
+                      <Users className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <CardTitle>Member Queue</CardTitle>
+                      <CardDescription>
+                        Members receive the pot in order of their queue position
+                      </CardDescription>
+                    </div>
+                  </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="divide-y divide-border">
-                    {members.map((member) => {
+                  <div className="divide-y divide-border/50">
+                    {members.map((member, index) => {
                       const isLocked = member.status === 'locked';
                       return (
                         <div 
                           key={member.id} 
                           className={cn(
-                            "py-4 flex items-center justify-between",
-                            isLocked && "opacity-60 bg-destructive/5 -mx-6 px-6"
+                            "py-4 flex items-center justify-between rounded-xl transition-colors",
+                            isLocked && "opacity-60 bg-destructive/5 -mx-4 px-4",
+                            !isLocked && "hover:bg-muted/30 -mx-4 px-4"
                           )}
+                          style={{ animationDelay: `${index * 0.05}s` }}
                         >
                           <div className="flex items-center gap-4">
                             <div className={cn(
-                              "w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium",
+                              "w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold",
                               isLocked 
                                 ? "bg-destructive/10 text-destructive" 
-                                : "bg-primary/10 text-primary"
+                                : member.queue_position === 1
+                                  ? "bg-primary text-primary-foreground"
+                                  : "bg-primary/10 text-primary"
                             )}>
                               {isLocked ? <Lock className="h-4 w-4" /> : member.queue_position}
                             </div>
                             <div>
-                              <p className="font-medium flex items-center gap-2">
+                              <p className="font-medium flex items-center gap-2 text-foreground">
                                 {member.profile?.name || member.profile?.email}
-                                {isLocked && <span className="text-xs text-destructive">(Locked)</span>}
+                                {isLocked && (
+                                  <Badge variant="destructive" className="text-xs">Locked</Badge>
+                                )}
                               </p>
                               <p className="text-sm text-muted-foreground">{member.profile?.email}</p>
                             </div>
@@ -943,7 +1024,7 @@ export default function GroupDetail() {
                                 <Button
                                   size="icon"
                                   variant="ghost"
-                                  className="h-6 w-6"
+                                  className="h-7 w-7 rounded-lg"
                                   disabled={movingMemberId === member.id || member.queue_position === 1}
                                   onClick={() => handleMoveQueuePosition(member.id, 'up')}
                                 >
@@ -952,7 +1033,7 @@ export default function GroupDetail() {
                                 <Button
                                   size="icon"
                                   variant="ghost"
-                                  className="h-6 w-6"
+                                  className="h-7 w-7 rounded-lg"
                                   disabled={movingMemberId === member.id || member.queue_position === members.filter(m => m.status === 'active').length}
                                   onClick={() => handleMoveQueuePosition(member.id, 'down')}
                                 >
@@ -962,7 +1043,7 @@ export default function GroupDetail() {
                             )}
                             {getRoleBadge(member.role)}
                             {member.missed_payment_count > 0 && (
-                              <Badge variant="outline" className="text-warning border-warning/20">
+                              <Badge variant="outline" className="text-amber-600 border-amber-500/20 bg-amber-500/10">
                                 {member.missed_payment_count} missed
                               </Badge>
                             )}
@@ -1024,18 +1105,23 @@ export default function GroupDetail() {
               </Card>
             </TabsContent>
 
-            <TabsContent value="payments" className="mt-4">
-              <Card>
+            <TabsContent value="payments" className="mt-6">
+              <Card className="card-elevated">
                 <CardHeader>
                   <div className="flex items-center justify-between">
-                    <div>
-                      <CardTitle>Payment Status</CardTitle>
-                      <CardDescription>
-                        {activeCycle 
-                          ? `Cycle: ${format(new Date(activeCycle.start_date), 'MMM d')} → ${format(new Date(activeCycle.due_date), 'MMM d, yyyy')}`
-                          : 'No active payment cycle'
-                        }
-                      </CardDescription>
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-primary/10">
+                        <DollarSign className="h-5 w-5 text-primary" />
+                      </div>
+                      <div>
+                        <CardTitle>Payment Status</CardTitle>
+                        <CardDescription>
+                          {activeCycle 
+                            ? `Cycle: ${format(new Date(activeCycle.start_date), 'MMM d')} → ${format(new Date(activeCycle.due_date), 'MMM d, yyyy')}`
+                            : 'No active payment cycle'
+                          }
+                        </CardDescription>
+                      </div>
                     </div>
                     {/* Close Cycle Button - Only for president when cycle is active */}
                     {isPresident && activeCycle && (
@@ -1044,7 +1130,7 @@ export default function GroupDetail() {
                           <Button 
                             variant="outline" 
                             size="sm"
-                            className="text-destructive hover:text-destructive"
+                            className="text-destructive hover:text-destructive border-destructive/30 hover:bg-destructive/10"
                             disabled={closingCycle}
                           >
                             {closingCycle ? (
@@ -1091,13 +1177,18 @@ export default function GroupDetail() {
                 </CardHeader>
                 <CardContent>
                   {!activeCycle ? (
-                    <div className="text-center py-8">
-                      <Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                      <p className="text-muted-foreground mb-4">No active payment cycle</p>
+                    <div className="text-center py-12">
+                      <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-4">
+                        <Calendar className="h-8 w-8 text-muted-foreground" />
+                      </div>
+                      <p className="text-lg font-medium text-foreground mb-2">No Active Cycle</p>
+                      <p className="text-muted-foreground mb-6 max-w-sm mx-auto">
+                        Start a new payment cycle to begin collecting contributions from members.
+                      </p>
                       {isPresident && (
                         <Dialog open={cycleDialogOpen} onOpenChange={setCycleDialogOpen}>
                           <DialogTrigger asChild>
-                            <Button onClick={handleOpenCycleDialog}>
+                            <Button onClick={handleOpenCycleDialog} className="shadow-soft">
                               <Play className="mr-2 h-4 w-4" />
                               Start New Cycle
                             </Button>
@@ -1210,77 +1301,88 @@ export default function GroupDetail() {
                       )}
                     </div>
                   ) : (
-                    <div className="space-y-4">
+                    <div className="space-y-6">
                       {/* Filter Buttons */}
                       {isPresident && paymentLogs.length > 0 && (
-                        <div className="flex flex-wrap gap-2">
+                        <div className="flex flex-wrap gap-2 p-1 bg-muted/30 rounded-xl">
                           <Button
                             size="sm"
-                            variant={paymentFilter === 'all' ? 'default' : 'outline'}
+                            variant={paymentFilter === 'all' ? 'default' : 'ghost'}
                             onClick={() => setPaymentFilter('all')}
+                            className="rounded-lg"
                           >
                             All ({paymentLogs.length})
                           </Button>
                           <Button
                             size="sm"
-                            variant={paymentFilter === 'unpaid' ? 'default' : 'outline'}
+                            variant={paymentFilter === 'unpaid' ? 'default' : 'ghost'}
                             onClick={() => setPaymentFilter('unpaid')}
-                            className={paymentFilter !== 'unpaid' ? 'text-muted-foreground' : ''}
+                            className={cn("rounded-lg", paymentFilter !== 'unpaid' && 'text-muted-foreground')}
                           >
-                            <Clock className="mr-1 h-3 w-3" />
+                            <Clock className="mr-1.5 h-3.5 w-3.5" />
                             Unpaid ({paymentLogs.filter(l => l.status === 'unpaid').length})
                           </Button>
                           <Button
                             size="sm"
-                            variant={paymentFilter === 'pending' ? 'default' : 'outline'}
+                            variant={paymentFilter === 'pending' ? 'default' : 'ghost'}
                             onClick={() => setPaymentFilter('pending')}
-                            className={paymentFilter !== 'pending' ? 'text-yellow-600' : ''}
+                            className={cn("rounded-lg", paymentFilter !== 'pending' && 'text-amber-600')}
                           >
-                            <Clock className="mr-1 h-3 w-3" />
+                            <Clock className="mr-1.5 h-3.5 w-3.5" />
                             Pending ({paymentLogs.filter(l => l.status === 'pending').length})
                           </Button>
                           <Button
                             size="sm"
-                            variant={paymentFilter === 'verified' ? 'default' : 'outline'}
+                            variant={paymentFilter === 'verified' ? 'default' : 'ghost'}
                             onClick={() => setPaymentFilter('verified')}
-                            className={paymentFilter !== 'verified' ? 'text-green-600' : ''}
+                            className={cn("rounded-lg", paymentFilter !== 'verified' && 'text-green-600')}
                           >
-                            <CheckCircle className="mr-1 h-3 w-3" />
+                            <CheckCircle className="mr-1.5 h-3.5 w-3.5" />
                             Verified ({paymentLogs.filter(l => l.status === 'verified').length})
                           </Button>
                         </div>
                       )}
 
                       {/* Payment List */}
-                      <div className="divide-y divide-border">
+                      <div className="divide-y divide-border/50">
                         {filteredPaymentLogs.length === 0 ? (
-                          <div className="text-center py-8 text-muted-foreground">
-                            No payments match this filter
+                          <div className="text-center py-12">
+                            <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center mx-auto mb-3">
+                              <DollarSign className="h-6 w-6 text-muted-foreground" />
+                            </div>
+                            <p className="text-muted-foreground">No payments match this filter</p>
                           </div>
                         ) : (
-                          filteredPaymentLogs.map((log) => {
+                          filteredPaymentLogs.map((log, index) => {
                             // Color-coded background based on status
                             const bgColor = {
-                              unpaid: 'bg-muted/30',
-                              pending: 'bg-yellow-500/10 border-l-4 border-l-yellow-500',
-                              verified: 'bg-green-500/10 border-l-4 border-l-green-500',
-                              rejected: 'bg-red-500/10 border-l-4 border-l-red-500',
+                              unpaid: 'bg-muted/20',
+                              pending: 'bg-amber-500/5 border-l-4 border-l-amber-500',
+                              verified: 'bg-green-500/5 border-l-4 border-l-green-500',
+                              rejected: 'bg-red-500/5 border-l-4 border-l-red-500',
                             }[log.status];
 
                             return (
-                              <div key={log.id} className={cn("py-4 px-3 -mx-3 flex items-center justify-between rounded-lg", bgColor)}>
+                              <div 
+                                key={log.id} 
+                                className={cn(
+                                  "py-4 px-4 -mx-4 flex items-center justify-between rounded-xl transition-all",
+                                  bgColor
+                                )}
+                                style={{ animationDelay: `${index * 0.03}s` }}
+                              >
                                 <div className="flex items-center gap-4">
                                   <div className={cn(
-                                    "w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium",
+                                    "w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold",
                                     log.status === 'verified' ? 'bg-green-500/20 text-green-700' :
-                                    log.status === 'pending' ? 'bg-yellow-500/20 text-yellow-700' :
+                                    log.status === 'pending' ? 'bg-amber-500/20 text-amber-700' :
                                     log.status === 'rejected' ? 'bg-red-500/20 text-red-700' :
                                     'bg-muted text-muted-foreground'
                                   )}>
                                     {log.member?.queue_position}
                                   </div>
                                   <div>
-                                    <p className="font-medium">
+                                    <p className="font-medium text-foreground">
                                       {log.member?.profile?.name || log.member?.profile?.email}
                                     </p>
                                     <p className="text-sm text-muted-foreground">

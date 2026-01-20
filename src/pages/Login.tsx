@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { ThemeToggle } from '@/components/ThemeToggle';
-import { Loader2, Eye, EyeOff } from 'lucide-react';
+import { Loader2, Eye, EyeOff, PiggyBank, ArrowRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { 
   validateSchema, 
@@ -79,17 +79,29 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
-      <header className="flex justify-between items-center p-4">
-        <Link to="/" className="text-2xl font-bold text-primary">
-          ConLify
+      {/* Background decoration */}
+      <div className="fixed inset-0 -z-10">
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
+        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-accent/5 rounded-full blur-3xl" />
+      </div>
+
+      <header className="flex justify-between items-center p-4 sm:p-6">
+        <Link to="/" className="flex items-center gap-2">
+          <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center">
+            <PiggyBank className="h-5 w-5 text-primary-foreground" />
+          </div>
+          <span className="text-xl font-bold text-foreground">ConLify</span>
         </Link>
         <ThemeToggle />
       </header>
 
       <main className="flex-1 flex items-center justify-center p-4">
-        <Card className="w-full max-w-md animate-fade-in">
-          <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl font-bold text-center">Welcome back</CardTitle>
+        <Card className="w-full max-w-md animate-fade-in card-elevated">
+          <CardHeader className="space-y-1 pb-6">
+            <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
+              <PiggyBank className="h-7 w-7 text-primary" />
+            </div>
+            <CardTitle className="text-2xl font-bold text-center text-foreground">Welcome back</CardTitle>
             <CardDescription className="text-center">
               Sign in to manage your savings groups
             </CardDescription>
@@ -147,9 +159,13 @@ export default function LoginPage() {
               </div>
             </CardContent>
 
-            <CardFooter className="flex flex-col space-y-4">
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            <CardFooter className="flex flex-col space-y-4 pt-2">
+              <Button type="submit" className="w-full shadow-soft h-11" disabled={loading}>
+                {loading ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <ArrowRight className="mr-2 h-4 w-4" />
+                )}
                 Sign In
               </Button>
 
@@ -164,7 +180,7 @@ export default function LoginPage() {
         </Card>
       </main>
 
-      <footer className="p-4 text-center text-sm text-muted-foreground">
+      <footer className="p-6 text-center text-sm text-muted-foreground">
         <p>ConLify is a record-keeping tool and not a financial institution.</p>
       </footer>
     </div>

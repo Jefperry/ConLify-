@@ -6,7 +6,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Group, GroupMember, MemberRole } from '@/types/database';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, Settings } from 'lucide-react';
+import { ArrowLeft, Settings, PiggyBank } from 'lucide-react';
 import AnalyticsDashboard from '@/components/settings/AnalyticsDashboard';
 import PersonalStats from '@/components/settings/PersonalStats';
 import MemberPerformance from '@/components/settings/MemberPerformance';
@@ -67,7 +67,7 @@ const GroupSettings = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-b from-background to-muted/20 flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
       </div>
     );
@@ -80,29 +80,40 @@ const GroupSettings = () => {
   const isPresident = membership.role === 'president';
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container max-w-6xl mx-auto py-6 px-4">
-        {/* Header */}
-        <div className="flex items-center gap-4 mb-6">
-          <Button variant="ghost" size="icon" onClick={() => navigate(`/groups/${id}`)}>
+    <div className="min-h-screen bg-gradient-to-b from-background to-muted/20 relative overflow-hidden">
+      {/* Background Decoration */}
+      <div className="absolute top-20 left-10 w-72 h-72 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-20 right-10 w-96 h-96 bg-accent/5 rounded-full blur-3xl pointer-events-none" />
+      
+      {/* Header */}
+      <header className="border-b border-border/50 bg-background/80 backdrop-blur-md sticky top-0 z-50">
+        <div className="container max-w-6xl mx-auto px-4 py-4 flex items-center gap-4">
+          <Button variant="ghost" size="icon" className="hover:bg-muted" onClick={() => navigate(`/groups/${id}`)}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <div className="flex items-center gap-2">
-            <Settings className="h-6 w-6" />
-            <h1 className="text-2xl font-bold">{group.name} - Settings</h1>
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-primary/10">
+              <PiggyBank className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <h1 className="text-xl font-semibold">{group.name}</h1>
+              <p className="text-sm text-muted-foreground">Group Settings & Analytics</p>
+            </div>
           </div>
         </div>
+      </header>
 
+      <div className="container max-w-6xl mx-auto py-6 px-4 relative">
         {/* Tabs */}
         <Tabs defaultValue="analytics" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2 lg:grid-cols-5">
-            <TabsTrigger value="analytics">Analytics</TabsTrigger>
-            <TabsTrigger value="personal">My Stats</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-2 lg:grid-cols-5 bg-muted/50 p-1">
+            <TabsTrigger value="analytics" className="data-[state=active]:shadow-soft">Analytics</TabsTrigger>
+            <TabsTrigger value="personal" className="data-[state=active]:shadow-soft">My Stats</TabsTrigger>
             {isPresident && (
               <>
-                <TabsTrigger value="members">Members</TabsTrigger>
-                <TabsTrigger value="reports">Reports</TabsTrigger>
-                <TabsTrigger value="general">General</TabsTrigger>
+                <TabsTrigger value="members" className="data-[state=active]:shadow-soft">Members</TabsTrigger>
+                <TabsTrigger value="reports" className="data-[state=active]:shadow-soft">Reports</TabsTrigger>
+                <TabsTrigger value="general" className="data-[state=active]:shadow-soft">General</TabsTrigger>
               </>
             )}
           </TabsList>
