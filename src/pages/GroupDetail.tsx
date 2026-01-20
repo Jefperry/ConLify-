@@ -4,7 +4,7 @@ import {
   ArrowLeft, Users, Copy, Check, Calendar, DollarSign, 
   Crown, AlertCircle, CheckCircle, Clock, XCircle, Loader2,
   UserPlus, Settings, Shield, User, Play, Timer, Filter, StopCircle, RotateCcw, Lock,
-  ChevronUp, ChevronDown, PiggyBank, TrendingUp, Sparkles, Wallet
+  ChevronUp, ChevronDown, PiggyBank, TrendingUp, Sparkles, Wallet, Bell
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -20,6 +20,8 @@ import { StatCard, StatCardGrid } from '@/components/ui/stat-card';
 import { ProgressRing } from '@/components/ui/progress-ring';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { ActivityFeed } from '@/components/ActivityFeed';
+import { StatusDot } from '@/components/ui/status-dot';
 import { format, differenceInDays, differenceInHours, addDays, addWeeks, addMonths } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
@@ -27,6 +29,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { closeCycle, restoreMember } from '@/lib/cycleManagement';
 import { addNotification, showNotification, requestNotificationPermission } from '@/lib/notifications';
+import { logActivity, sendMemberReminder, sendBulkReminders } from '@/lib/activity';
 import { Group, GroupMember, Profile, PaymentCycle, PaymentLog, MemberStatus, PaymentStatus, MemberRole } from '@/types/database';
 
 interface MemberWithProfile extends GroupMember {
@@ -59,6 +62,8 @@ export default function GroupDetail() {
   const [closingCycle, setClosingCycle] = useState(false);
   const [restoringMemberId, setRestoringMemberId] = useState<string | null>(null);
   const [movingMemberId, setMovingMemberId] = useState<string | null>(null);
+  const [remindingMemberId, setRemindingMemberId] = useState<string | null>(null);
+  const [remindingAll, setRemindingAll] = useState(false);
 
   const isPresident = group?.president_id === user?.id;
 
@@ -617,6 +622,106 @@ export default function GroupDetail() {
     }
   };
 
+  // Handle sending a reminder to a member
+  const handleRemindMember = async (paymentLogId: string, memberId: string, memberName: string) => {
+    if (!group || !activeCycle || !user) return;
+    
+    setRemindingMemberId(memberId);
+    try {
+      const currentMember = members.find(m => m.user_id === user.id);
+      const senderName = currentMember?.profile?.name || user.email || 'Group President';
+      
+      // Get the target user ID from the member
+      const targetMember = members.find(m => m.id === memberId);
+      if (!targetMember?.user_id) {
+        throw new Error('Could not find target member');
+      }
+      
+      const result = await sendMemberReminder(
+        group.id,
+        paymentLogId,
+        targetMember.user_id,
+        memberName,
+        user.id,
+        senderName,
+        group.name,
+        group.contribution_amount
+      );
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to send reminder');
+      }
+
+      if (result.alreadyRemindedRecently) {
+        toast({
+          title: "Already Reminded",
+          description: "This member was reminded within the last hour.",
+        });
+      } else {
+        toast({
+          title: "Reminder Sent",
+          description: `Reminder sent to ${memberName}`,
+        });
+      }
+
+      // Refresh data to update reminder count
+      fetchGroupData();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error?.message || "Failed to send reminder",
+        variant: "destructive",
+      });
+    } finally {
+      setRemindingMemberId(null);
+    }
+  };
+
+  // Handle sending reminders to all unpaid members
+  const handleRemindAll = async () => {
+    if (!group || !activeCycle || !user) return;
+    
+    const unpaidLogs = paymentLogs.filter(l => l.status === 'unpaid' || l.status === 'rejected');
+    if (unpaidLogs.length === 0) {
+      toast({
+        title: "No Reminders Needed",
+        description: "All members have paid or are pending verification.",
+      });
+      return;
+    }
+
+    setRemindingAll(true);
+    try {
+      const currentMember = members.find(m => m.user_id === user.id);
+      const senderName = currentMember?.profile?.name || user.email || 'Group President';
+      
+      const result = await sendBulkReminders(
+        group.id,
+        activeCycle.id,
+        user.id,
+        senderName,
+        group.name,
+        group.contribution_amount
+      );
+
+      toast({
+        title: "Reminders Sent",
+        description: `${result.remindedCount} reminder(s) sent, ${result.skippedCount} skipped (recently reminded)`,
+      });
+
+      // Refresh data to update reminder counts
+      fetchGroupData();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error?.message || "Failed to send reminders",
+        variant: "destructive",
+      });
+    } finally {
+      setRemindingAll(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background">
@@ -1123,30 +1228,48 @@ export default function GroupDetail() {
                         </CardDescription>
                       </div>
                     </div>
-                    {/* Close Cycle Button - Only for president when cycle is active */}
-                    {isPresident && activeCycle && (
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            className="text-destructive hover:text-destructive border-destructive/30 hover:bg-destructive/10"
-                            disabled={closingCycle}
-                          >
-                            {closingCycle ? (
-                              <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                            ) : (
-                              <StopCircle className="h-4 w-4 mr-2" />
-                            )}
-                            Close Cycle
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Close Payment Cycle</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Are you sure you want to close this payment cycle?
-                              <br /><br />
+                    <div className="flex items-center gap-2">
+                      {/* Remind All Button - Only for president when cycle is active and has unpaid members */}
+                      {isPresident && activeCycle && paymentLogs.filter(l => l.status === 'unpaid' || l.status === 'rejected').length > 0 && (
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={handleRemindAll}
+                          disabled={remindingAll}
+                          className="text-amber-600 hover:text-amber-700 border-amber-500/30 hover:bg-amber-500/10"
+                        >
+                          {remindingAll ? (
+                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                          ) : (
+                            <Bell className="h-4 w-4 mr-2" />
+                          )}
+                          Remind All ({paymentLogs.filter(l => l.status === 'unpaid' || l.status === 'rejected').length})
+                        </Button>
+                      )}
+                      {/* Close Cycle Button - Only for president when cycle is active */}
+                      {isPresident && activeCycle && (
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              className="text-destructive hover:text-destructive border-destructive/30 hover:bg-destructive/10"
+                              disabled={closingCycle}
+                            >
+                              {closingCycle ? (
+                                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                              ) : (
+                                <StopCircle className="h-4 w-4 mr-2" />
+                              )}
+                              Close Cycle
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Close Payment Cycle</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Are you sure you want to close this payment cycle?
+                                <br /><br />
                               This will:
                               <ul className="list-disc list-inside mt-2 space-y-1">
                                 <li>Mark the cycle as closed</li>
@@ -1173,6 +1296,7 @@ export default function GroupDetail() {
                         </AlertDialogContent>
                       </AlertDialog>
                     )}
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -1395,6 +1519,29 @@ export default function GroupDetail() {
                                 </div>
                                 <div className="flex items-center gap-3">
                                   {getPaymentStatusBadge(log.status)}
+                                  {/* Remind Button for unpaid/rejected payments */}
+                                  {isPresident && (log.status === 'unpaid' || log.status === 'rejected') && (
+                                    <Button 
+                                      size="sm" 
+                                      variant="outline"
+                                      onClick={() => handleRemindMember(
+                                        log.id, 
+                                        log.member_id, 
+                                        log.member?.profile?.name || log.member?.profile?.email || 'Member'
+                                      )}
+                                      disabled={remindingMemberId === log.member_id}
+                                      className="text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-900/20"
+                                    >
+                                      {remindingMemberId === log.member_id ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                      ) : (
+                                        <>
+                                          <Bell className="h-4 w-4 mr-1" />
+                                          Remind
+                                        </>
+                                      )}
+                                    </Button>
+                                  )}
                                   {isPresident && log.status === 'pending' && (
                                     <div className="flex gap-2">
                                       {/* Verify Button with Confirmation */}

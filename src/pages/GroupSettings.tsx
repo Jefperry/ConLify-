@@ -107,13 +107,13 @@ const GroupSettings = () => {
         {/* Tabs */}
         <Tabs defaultValue="analytics" className="space-y-6">
           <TabsList className="grid w-full grid-cols-2 lg:grid-cols-5 bg-muted/50 p-1">
-            <TabsTrigger value="analytics" className="data-[state=active]:shadow-soft">Analytics</TabsTrigger>
-            <TabsTrigger value="personal" className="data-[state=active]:shadow-soft">My Stats</TabsTrigger>
+            <TabsTrigger value="analytics" className="data-[state=active]:shadow-soft">Who has paid?</TabsTrigger>
+            <TabsTrigger value="personal" className="data-[state=active]:shadow-soft">My payments</TabsTrigger>
             {isPresident && (
               <>
-                <TabsTrigger value="members" className="data-[state=active]:shadow-soft">Members</TabsTrigger>
-                <TabsTrigger value="reports" className="data-[state=active]:shadow-soft">Reports</TabsTrigger>
-                <TabsTrigger value="general" className="data-[state=active]:shadow-soft">General</TabsTrigger>
+                <TabsTrigger value="members" className="data-[state=active]:shadow-soft">Member activity</TabsTrigger>
+                <TabsTrigger value="reports" className="data-[state=active]:shadow-soft">Download records</TabsTrigger>
+                <TabsTrigger value="general" className="data-[state=active]:shadow-soft">Group settings</TabsTrigger>
               </>
             )}
           </TabsList>

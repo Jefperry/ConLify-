@@ -56,6 +56,54 @@ export interface PaymentLog {
   status: PaymentStatus;
   marked_at: string | null;
   verified_at: string | null;
+  reminder_count: number;
+  last_reminded_at: string | null;
+  created_at: string;
+}
+
+// Activity types for group feed
+export type ActivityType =
+  | 'payment_marked_sent'
+  | 'payment_verified'
+  | 'payment_rejected'
+  | 'member_joined'
+  | 'member_locked'
+  | 'member_restored'
+  | 'cycle_started'
+  | 'cycle_closed'
+  | 'reminder_sent'
+  | 'member_reminded';
+
+export interface ActivityLog {
+  id: string;
+  group_id: string;
+  user_id: string | null;
+  actor_name: string | null;
+  action_type: ActivityType;
+  target_user_id: string | null;
+  target_name: string | null;
+  metadata: Record<string, any>;
+  created_at: string;
+}
+
+// Notification types (database-stored)
+export type NotificationType =
+  | 'payment_reminder'
+  | 'payment_verified'
+  | 'payment_rejected'
+  | 'cycle_started'
+  | 'cycle_closed'
+  | 'member_joined'
+  | 'member_locked';
+
+export interface DbNotification {
+  id: string;
+  user_id: string;
+  group_id: string | null;
+  type: NotificationType;
+  title: string;
+  message: string;
+  read_at: string | null;
   created_at: string;
 }
 

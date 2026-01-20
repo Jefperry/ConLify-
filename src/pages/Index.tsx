@@ -68,22 +68,17 @@ export default function IndexPage() {
           <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-20 lg:py-32">
             <div className="max-w-4xl mx-auto text-center">
               <div className="animate-fade-in">
-                {/* Badge */}
-                <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-full text-sm font-medium mb-8 shadow-soft">
-                  <Sparkles className="h-4 w-4" />
-                  Trusted by 1,000+ savings groups
-                </div>
                 
                 {/* Headline */}
                 <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold mb-6 tracking-tight text-foreground">
-                  Manage Your Savings Circle{' '}
-                  <span className="text-gradient">with Confidence</span>
+                  Keep your savings group on track{' '}
+                  <span className="text-gradient">without chasing people</span>
                 </h1>
                 
                 {/* Subheadline */}
                 <p className="text-lg sm:text-xl text-muted-foreground mb-10 max-w-2xl mx-auto leading-relaxed">
-                  ConLify is the modern digital ledger for ROSCA groups. Automate reminders, 
-                  track contributions, and bring complete transparency to your savings circle.
+                  A simple way to manage contributions, remind members, and keep everyone accountable. 
+                  No spreadsheets. No awkward conversations.
                 </p>
                 
                 {/* CTA Buttons */}
@@ -119,70 +114,58 @@ export default function IndexPage() {
           </div>
         </section>
 
-        {/* Stats Section */}
-        <section className="border-y border-border/50 bg-card/50">
-          <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-12">
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-8">
-              <StatItem value="$2.5M+" label="Contributions Tracked" />
-              <StatItem value="1,000+" label="Active Groups" />
-              <StatItem value="15,000+" label="Members" />
-              <StatItem value="99.9%" label="Uptime" />
-            </div>
-          </div>
-        </section>
-
         {/* Features Section */}
-        <section className="py-20 lg:py-28">
+        <section className="py-20 lg:py-28 border-t border-border/50">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-16">
               <h2 className="text-3xl sm:text-4xl font-bold mb-4 text-foreground">
-                Everything you need to run your group
+                Focus on your group, not paperwork
               </h2>
               <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-                ConLify handles the tedious parts so you can focus on what matters - building trust within your savings circle.
+                Let ConLify handle the reminders and tracking while you build trust with your community.
               </p>
             </div>
             
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
               <FeatureCard
                 icon={Bell}
-                title="Smart Reminders"
-                description="Automatic payment reminders keep everyone on track. No more awkward follow-ups."
+                title="No More Chasing"
+                description="Members get gentle reminders automatically. You never have to send awkward texts again."
                 gradient="from-blue-500/10 to-cyan-500/10"
                 iconColor="text-blue-500"
               />
               <FeatureCard
                 icon={CheckCircle}
-                title="Payment Verification"
-                description="Members mark payments as sent, presidents verify against bank records. Simple and transparent."
+                title="See Who's Paid"
+                description="Payment status visible to everyone. Transparency builds trust without uncomfortable questions."
                 gradient="from-green-500/10 to-emerald-500/10"
                 iconColor="text-green-500"
               />
               <FeatureCard
                 icon={Lock}
-                title="Automatic Lockouts"
-                description="Three missed payments triggers lockout. Fair enforcement without uncomfortable conversations."
+                title="Fair Accountability"
+                description="Three missed payments triggers lockout — no exceptions. Clear rules everyone understands."
                 gradient="from-red-500/10 to-orange-500/10"
                 iconColor="text-red-500"
               />
               <FeatureCard
                 icon={Users}
-                title="Queue Management"
-                description="Transparent payout order visible to all members. Everyone knows exactly when their turn comes."
+                title="Know Your Turn"
+                description="Everyone sees the queue position. No confusion about who's next for the pot."
                 gradient="from-purple-500/10 to-pink-500/10"
                 iconColor="text-purple-500"
               />
               <FeatureCard
                 icon={BarChart3}
-                title="Real-time Analytics"
-                description="Track contributions, view payment history, and monitor group health with detailed dashboards."
+                title="Track Everything"
+                description="See payment history at a glance. Know exactly where you stand in your group."
                 gradient="from-amber-500/10 to-yellow-500/10"
                 iconColor="text-amber-500"
               />
               <FeatureCard
                 icon={Clock}
-                title="Flexible Scheduling"
-                description="Weekly or monthly contribution cycles. Customize dates and amounts to fit your group's needs."
+                title="Your Schedule"
+                description="Weekly or monthly — your group decides. Customize amounts and dates that work for everyone."
                 gradient="from-indigo-500/10 to-violet-500/10"
                 iconColor="text-indigo-500"
               />
@@ -274,16 +257,6 @@ export default function IndexPage() {
           </div>
         </div>
       </footer>
-    </div>
-  );
-}
-
-// Stat Item Component
-function StatItem({ value, label }: { value: string; label: string }) {
-  return (
-    <div className="text-center">
-      <p className="text-3xl sm:text-4xl font-bold text-foreground mb-1">{value}</p>
-      <p className="text-sm text-muted-foreground">{label}</p>
     </div>
   );
 }
