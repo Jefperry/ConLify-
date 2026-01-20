@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { ThemeToggle } from '@/components/ThemeToggle';
@@ -16,6 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { StatusDot } from '@/components/ui/status-dot';
 import { RoleBadge } from '@/components/ui/role-badge';
+import { Input } from '@/components/ui/input';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -41,7 +43,9 @@ import {
   PiggyBank,
   Clock,
   Bell,
-  AlertCircle
+  AlertCircle,
+  Ticket,
+  ArrowRight
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format, formatDistanceToNow, differenceInDays } from 'date-fns';
@@ -89,6 +93,7 @@ export default function DashboardPage() {
   const [showArchived, setShowArchived] = useState(false);
   const [loading, setLoading] = useState(true);
   const [sendingReminders, setSendingReminders] = useState<string | null>(null);
+  const [inviteCode, setInviteCode] = useState('');
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -462,25 +467,115 @@ export default function DashboardPage() {
         {loading ? (
           <DashboardSkeleton />
         ) : groups.length === 0 ? (
-          <div className="space-y-6">
-            <div className="mb-6">
-              <h2 className="text-2xl font-semibold text-foreground">
-                Welcome, {userName}!
-              </h2>
-              <p className="text-muted-foreground mt-1">
-                Get started by creating or joining a savings group.
-              </p>
-            </div>
-            <EmptyState
-              type="groups"
-              title="No groups yet"
-              description="Create a savings group or ask a friend for their invite code to join one."
-              action={{
-                label: 'Create Your First Group',
-                onClick: () => navigate('/groups/create')
+          <div className="flex flex-col items-center justify-center min-h-[60vh]">
+            <motion.div 
+              className="max-w-4xl w-full space-y-10"
+              initial="hidden"
+              animate="visible"
+              variants={{
+                hidden: { opacity: 0 },
+                visible: {
+                  opacity: 1,
+                  transition: { staggerChildren: 0.2 }
+                }
               }}
-              className="card-elevated"
-            />
+            >
+              {/* Human-friendly greeting */}
+              <motion.div 
+                className="text-center"
+                variants={{
+                  hidden: { opacity: 0, y: 20 },
+                  visible: { opacity: 1, y: 0, transition: { duration: 0.2 } }
+                }}
+              >
+                <h2 className="text-3xl font-semibold text-slate-900 dark:text-white">
+                  {(() => {
+                    const hour = new Date().getHours();
+                    if (hour < 12) return 'Good morning';
+                    if (hour < 17) return 'Good afternoon';
+                    return 'Good evening';
+                  })()}, {userName}!
+                </h2>
+                <p className="text-slate-600 dark:text-slate-400 mt-2 text-lg">
+                  Let's get your savings back on track.
+                </p>
+              </motion.div>
+              
+              {/* Two-Path Layout */}
+              <div className="grid md:grid-cols-2 gap-6">
+                {/* Create Group Card */}
+                <motion.div
+                  variants={{
+                    hidden: { opacity: 0, y: 20 },
+                    visible: { opacity: 1, y: 0, transition: { duration: 0.2 } }
+                  }}
+                >
+                  <Card className="rounded-[24px] border border-slate-100 dark:border-transparent shadow-[0_8px_30px_rgba(0,0,0,0.04)] dark:bg-slate-900/40 dark:backdrop-blur-md hover:shadow-[0_12px_40px_rgba(0,0,0,0.08)] dark:hover:bg-slate-900/50 transition-all duration-300 h-full">
+                    <CardContent className="p-8 flex flex-col items-center text-center h-full">
+                      <div className="w-16 h-16 bg-green-100 dark:bg-green-500/20 rounded-full flex items-center justify-center mb-6">
+                        <UserPlus className="w-8 h-8 text-green-600 dark:text-green-400" strokeWidth={1.5} />
+                      </div>
+                      <h3 className="text-xl font-semibold text-slate-900 dark:text-white mb-2">Create a Group</h3>
+                      <p className="text-slate-600 dark:text-slate-400 mb-6 flex-1">
+                        Start your own savings circle and invite friends to join.
+                      </p>
+                      <Button 
+                        onClick={() => navigate('/groups/create')}
+                        className="bg-green-500 hover:bg-green-600 text-white rounded-full px-8 py-5 text-base"
+                      >
+                        Create Group
+                        <ArrowRight className="w-4 h-4 ml-2" strokeWidth={1.5} />
+                      </Button>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+
+                {/* Join Group Card */}
+                <motion.div
+                  variants={{
+                    hidden: { opacity: 0, y: 20 },
+                    visible: { opacity: 1, y: 0, transition: { duration: 0.2 } }
+                  }}
+                >
+                  <Card className="rounded-[24px] border border-slate-100 dark:border-transparent shadow-[0_8px_30px_rgba(0,0,0,0.04)] dark:bg-slate-900/40 dark:backdrop-blur-md hover:shadow-[0_12px_40px_rgba(0,0,0,0.08)] dark:hover:bg-slate-900/50 transition-all duration-300 h-full">
+                    <CardContent className="p-8 flex flex-col items-center text-center h-full">
+                      <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mb-6">
+                        <Ticket className="w-8 h-8 text-slate-600 dark:text-slate-400" strokeWidth={1.5} />
+                      </div>
+                      <h3 className="text-xl font-semibold text-slate-900 dark:text-white mb-2">Join with Invite Code</h3>
+                      <p className="text-slate-600 dark:text-slate-400 mb-6 flex-1">
+                        Have a code from a friend? Enter it below to join their group.
+                      </p>
+                      {/* Nested Pill Input */}
+                      <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full p-1.5 flex items-center">
+                        <Input
+                          placeholder="Enter invite code"
+                          value={inviteCode}
+                          onChange={(e) => setInviteCode(e.target.value)}
+                          className="flex-1 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-slate-400 dark:placeholder:text-slate-500 text-slate-900 dark:text-white px-4"
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && inviteCode.trim()) {
+                              navigate(`/groups/join?code=${inviteCode.trim()}`);
+                            }
+                          }}
+                        />
+                        <Button 
+                          onClick={() => {
+                            if (inviteCode.trim()) {
+                              navigate(`/groups/join?code=${inviteCode.trim()}`);
+                            }
+                          }}
+                          disabled={!inviteCode.trim()}
+                          className="bg-slate-900 dark:bg-white hover:bg-slate-800 dark:hover:bg-slate-100 text-white dark:text-slate-900 rounded-full px-6 py-2 transition-colors disabled:opacity-50"
+                        >
+                          Join
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              </div>
+            </motion.div>
           </div>
         ) : (
           <div className="space-y-8">
