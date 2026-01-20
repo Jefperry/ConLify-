@@ -11,6 +11,8 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { formatDistanceToNow } from 'date-fns';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import {
   AppNotification,
   getStoredNotifications,
@@ -19,50 +21,207 @@ import {
   clearAllNotifications,
   getUnreadCount,
 } from '@/lib/notifications';
+import { DbNotification, NotificationType } from '@/types/database';
 
 interface NotificationCenterProps {
   onNotificationClick?: (notification: AppNotification) => void;
 }
 
 export default function NotificationCenter({ onNotificationClick }: NotificationCenterProps) {
-  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const { user } = useAuth();
+  const [localNotifications, setLocalNotifications] = useState<AppNotification[]>([]);
+  const [dbNotifications, setDbNotifications] = useState<DbNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [open, setOpen] = useState(false);
 
-  // Load notifications on mount and when popover opens
+  // Combine and sort notifications from both sources
+  const allNotifications = [...localNotifications, ...dbNotifications.map(dbToAppNotification)]
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .slice(0, 20);
+
+  // Convert DB notification to AppNotification format
+  function dbToAppNotification(db: DbNotification): AppNotification {
+    return {
+      id: db.id,
+      type: mapDbTypeToAppType(db.type as NotificationType),
+      title: db.title,
+      message: db.message,
+      groupId: db.group_id || undefined,
+      createdAt: db.created_at,
+      read: !!db.read_at,
+      isFromDb: true, // Custom flag to track source
+    } as AppNotification & { isFromDb: boolean };
+  }
+
+  function mapDbTypeToAppType(type: NotificationType): AppNotification['type'] {
+    switch (type) {
+      case 'payment_reminder':
+        return 'payment_pending';
+      case 'payment_verified':
+        return 'payment_verified';
+      case 'payment_rejected':
+        return 'payment_rejected';
+      case 'cycle_started':
+        return 'cycle_started';
+      case 'cycle_closed':
+        return 'cycle_closed';
+      case 'member_joined':
+        return 'member_joined';
+      case 'member_locked':
+        return 'member_locked';
+      default:
+        return 'payment_pending';
+    }
+  }
+
+  // Load local notifications on mount and when popover opens
   useEffect(() => {
-    loadNotifications();
+    loadLocalNotifications();
   }, [open]);
+
+  // Fetch database notifications
+  useEffect(() => {
+    if (user) {
+      fetchDbNotifications();
+    }
+  }, [user, open]);
+
+  // Set up real-time subscription for new notifications
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel('notification-center-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          const newNotification = payload.new as DbNotification;
+          setDbNotifications(prev => [newNotification, ...prev.slice(0, 19)]);
+          updateUnreadCount();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
 
   // Poll for new notifications every 30 seconds
   useEffect(() => {
-    const interval = setInterval(loadNotifications, 30000);
+    const interval = setInterval(() => {
+      loadLocalNotifications();
+      if (user) fetchDbNotifications();
+    }, 30000);
     return () => clearInterval(interval);
-  }, []);
+  }, [user]);
 
-  const loadNotifications = () => {
+  const loadLocalNotifications = () => {
     const stored = getStoredNotifications();
-    setNotifications(stored);
-    setUnreadCount(getUnreadCount());
+    setLocalNotifications(stored);
+    updateUnreadCount();
   };
 
-  const handleMarkAsRead = (notificationId: string) => {
-    markNotificationAsRead(notificationId);
-    loadNotifications();
+  const fetchDbNotifications = async () => {
+    if (!user) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('notifications')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(20);
+
+      if (error) throw error;
+      setDbNotifications((data as DbNotification[]) || []);
+      updateUnreadCount();
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+    }
   };
 
-  const handleMarkAllAsRead = () => {
+  const updateUnreadCount = () => {
+    const localUnread = getUnreadCount();
+    const dbUnread = dbNotifications.filter(n => !n.read_at).length;
+    setUnreadCount(localUnread + dbUnread);
+  };
+
+  const handleMarkAsRead = async (notificationId: string, isFromDb?: boolean) => {
+    if (isFromDb) {
+      try {
+        await supabase
+          .from('notifications')
+          .update({ read_at: new Date().toISOString() })
+          .eq('id', notificationId);
+        
+        setDbNotifications(prev => 
+          prev.map(n => n.id === notificationId ? { ...n, read_at: new Date().toISOString() } : n)
+        );
+      } catch (error) {
+        console.error('Error marking notification as read:', error);
+      }
+    } else {
+      markNotificationAsRead(notificationId);
+      loadLocalNotifications();
+    }
+    updateUnreadCount();
+  };
+
+  const handleMarkAllAsRead = async () => {
+    // Mark local notifications
     markAllNotificationsAsRead();
-    loadNotifications();
+    loadLocalNotifications();
+    
+    // Mark database notifications
+    if (user) {
+      try {
+        await supabase
+          .from('notifications')
+          .update({ read_at: new Date().toISOString() })
+          .eq('user_id', user.id)
+          .is('read_at', null);
+        
+        setDbNotifications(prev => 
+          prev.map(n => ({ ...n, read_at: n.read_at || new Date().toISOString() }))
+        );
+      } catch (error) {
+        console.error('Error marking all as read:', error);
+      }
+    }
+    
+    updateUnreadCount();
   };
 
-  const handleClearAll = () => {
+  const handleClearAll = async () => {
     clearAllNotifications();
-    loadNotifications();
+    setLocalNotifications([]);
+    
+    // Clear database notifications
+    if (user) {
+      try {
+        await supabase
+          .from('notifications')
+          .delete()
+          .eq('user_id', user.id);
+        
+        setDbNotifications([]);
+      } catch (error) {
+        console.error('Error clearing notifications:', error);
+      }
+    }
+    
+    setUnreadCount(0);
   };
 
-  const handleNotificationClick = (notification: AppNotification) => {
-    handleMarkAsRead(notification.id);
+  const handleNotificationClick = (notification: AppNotification & { isFromDb?: boolean }) => {
+    handleMarkAsRead(notification.id, notification.isFromDb);
     onNotificationClick?.(notification);
     setOpen(false);
   };
@@ -140,20 +299,21 @@ export default function NotificationCenter({ onNotificationClick }: Notification
         </div>
 
         <ScrollArea className="h-[300px]">
-          {notifications.length === 0 ? (
+          {allNotifications.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-[200px] text-muted-foreground">
               <Bell className="h-8 w-8 mb-2 opacity-50" />
               <p className="text-sm">No notifications yet</p>
+              <p className="text-xs mt-1">Payment reminders will appear here</p>
             </div>
           ) : (
             <div className="divide-y">
-              {notifications.map((notification) => (
+              {allNotifications.map((notification) => (
                 <div
                   key={notification.id}
                   className={`p-4 hover:bg-muted/50 cursor-pointer transition-colors ${
                     !notification.read ? 'bg-primary/5' : ''
                   }`}
-                  onClick={() => handleNotificationClick(notification)}
+                  onClick={() => handleNotificationClick(notification as AppNotification & { isFromDb?: boolean })}
                 >
                   <div className="flex gap-3">
                     <div className={`p-2 rounded-full ${getNotificationColor(notification.type)}`}>
@@ -182,7 +342,7 @@ export default function NotificationCenter({ onNotificationClick }: Notification
           )}
         </ScrollArea>
 
-        {notifications.length > 0 && (
+        {allNotifications.length > 0 && (
           <>
             <Separator />
             <div className="p-2">
