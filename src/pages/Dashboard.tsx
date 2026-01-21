@@ -94,12 +94,29 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [sendingReminders, setSendingReminders] = useState<string | null>(null);
   const [inviteCode, setInviteCode] = useState('');
+  const [userAvatarUrl, setUserAvatarUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (!authLoading && !user) {
       navigate('/login');
     }
   }, [user, authLoading, navigate]);
+
+  // Fetch user's profile for avatar
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      if (!user) return;
+      const { data } = await supabase
+        .from('profiles')
+        .select('avatar_url')
+        .eq('id', user.id)
+        .single();
+      if (data?.avatar_url) {
+        setUserAvatarUrl(data.avatar_url);
+      }
+    };
+    fetchUserProfile();
+  }, [user]);
 
   useEffect(() => {
     if (user) {
@@ -424,6 +441,7 @@ export default function DashboardPage() {
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-10 w-10 rounded-full ring-2 ring-border hover:ring-primary/50 transition-all">
                   <Avatar className="h-10 w-10">
+                    <AvatarImage src={userAvatarUrl || ''} alt={userName} />
                     <AvatarFallback className="bg-primary/10 text-primary font-medium">
                       {userInitials}
                     </AvatarFallback>

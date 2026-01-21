@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   LayoutDashboard, Users, CreditCard, Settings, Activity,
@@ -21,7 +21,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { ActivityFeed } from '@/components/ActivityFeed';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { format, differenceInDays, differenceInHours, addWeeks, addMonths } from 'date-fns';
@@ -201,7 +201,7 @@ export default function GroupWorkspace() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   
   // Navigation state
   const [activeTab, setActiveTab] = useState<NavTab>('dashboard');
@@ -213,7 +213,7 @@ export default function GroupWorkspace() {
   const [activeCycle, setActiveCycle] = useState<PaymentCycle | null>(null);
   const [paymentLogs, setPaymentLogs] = useState<PaymentLogWithMember[]>([]);
   const [allCycles, setAllCycles] = useState<PaymentCycle[]>([]);
-  
+  const [userProfile, setUserProfile] = useState<{ name?: string; avatar_url?: string } | null>(null);  
   // UI state
   const [copied, setCopied] = useState(false);
   const [cycleDialogOpen, setCycleDialogOpen] = useState(false);
@@ -321,6 +321,22 @@ export default function GroupWorkspace() {
       fetchGroupData();
     }
   }, [id]);
+
+  // Fetch user profile for header dropdown
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      if (!user) return;
+      const { data } = await supabase
+        .from('profiles')
+        .select('name, avatar_url')
+        .eq('id', user.id)
+        .single();
+      if (data) {
+        setUserProfile(data);
+      }
+    };
+    fetchUserProfile();
+  }, [user]);
 
   // Real-time subscription for payment updates
   useEffect(() => {
@@ -1008,6 +1024,65 @@ export default function GroupWorkspace() {
 
       {/* Main Workspace - Fluid */}
       <main className="flex-1 flex flex-col overflow-hidden bg-slate-50 dark:bg-[#020617]">
+        {/* Top Header Bar */}
+        <header className="flex items-center justify-end gap-4 px-6 py-4 border-b border-slate-100 dark:border-white/5 bg-white/50 dark:bg-slate-900/20 backdrop-blur-sm">
+          <ThemeToggle />
+          
+          {/* Profile Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="relative h-10 w-10 rounded-full ring-2 ring-slate-200 dark:ring-white/10 hover:ring-primary/50 dark:hover:ring-amber-500/50 transition-all">
+                <Avatar className="h-10 w-10">
+                  <AvatarImage src={userProfile?.avatar_url || ''} alt={userProfile?.name || 'User'} />
+                  <AvatarFallback className="bg-primary/10 dark:bg-amber-500/20 text-primary dark:text-amber-400 font-medium">
+                    {(userProfile?.name || user?.email || 'U').charAt(0).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-56 dark:bg-slate-900/90 dark:backdrop-blur-xl dark:border-white/10" align="end" forceMount>
+              <DropdownMenuLabel className="font-normal">
+                <div className="flex flex-col space-y-1">
+                  <p className="text-sm font-medium leading-none dark:text-white">{userProfile?.name || 'User'}</p>
+                  <p className="text-xs leading-none text-muted-foreground dark:text-slate-400">
+                    {user?.email}
+                  </p>
+                </div>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator className="dark:bg-white/10" />
+              <DropdownMenuItem asChild>
+                <Link to="/profile" className="cursor-pointer dark:text-slate-200 dark:focus:bg-white/5">
+                  <User className="mr-2 h-4 w-4" strokeWidth={1.5} />
+                  Profile Settings
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link to="/dashboard" className="cursor-pointer dark:text-slate-200 dark:focus:bg-white/5">
+                  <PiggyBank className="mr-2 h-4 w-4" strokeWidth={1.5} />
+                  My Groups
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link to="/groups/join" className="cursor-pointer dark:text-slate-200 dark:focus:bg-white/5">
+                  <UserPlus className="mr-2 h-4 w-4" strokeWidth={1.5} />
+                  Join a Group
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator className="dark:bg-white/10" />
+              <DropdownMenuItem 
+                onClick={() => {
+                  signOut();
+                  navigate('/');
+                }} 
+                className="cursor-pointer text-destructive focus:text-destructive dark:text-red-400 dark:focus:text-red-400"
+              >
+                <LogOut className="mr-2 h-4 w-4" strokeWidth={1.5} />
+                Sign Out
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </header>
+
         {/* Floating Alerts */}
         <div className="p-6 pb-0 space-y-3">
           <AnimatePresence>
@@ -1306,6 +1381,50 @@ export default function GroupWorkspace() {
                     <p className="text-sm text-slate-500 dark:text-slate-400">{members.length} total members</p>
                   </div>
                 </div>
+
+                {/* Invite Member Card */}
+                <Card className="bg-gradient-to-r from-primary/5 to-primary/10 dark:from-amber-500/10 dark:to-orange-500/5 rounded-[24px] border border-primary/20 dark:border-amber-500/20 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none">
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-primary/10 dark:bg-amber-500/20 rounded-full flex items-center justify-center">
+                          <UserPlus className="w-6 h-6 text-primary dark:text-amber-400" strokeWidth={1.5} />
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-slate-900 dark:text-white">Invite New Members</h3>
+                          <p className="text-sm text-slate-600 dark:text-slate-400">Share this code to add people to your group</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="px-4 py-2 bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-white/10">
+                          <code className="text-lg font-mono font-bold text-slate-900 dark:text-white tracking-wider">{group.invite_code}</code>
+                        </div>
+                        <Button 
+                          variant="outline" 
+                          className="rounded-xl"
+                          onClick={() => {
+                            navigator.clipboard.writeText(group.invite_code);
+                            setCopied(true);
+                            toast({ title: "Copied!", description: "Invite code copied to clipboard" });
+                            setTimeout(() => setCopied(false), 2000);
+                          }}
+                        >
+                          {copied ? (
+                            <>
+                              <Check className="w-4 h-4 mr-2 text-green-500" strokeWidth={1.5} />
+                              Copied
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="w-4 h-4 mr-2" strokeWidth={1.5} />
+                              Copy Code
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
 
                 {/* Members Table */}
                 <Card className="bg-white dark:bg-slate-900/40 dark:backdrop-blur-xl rounded-[24px] border border-slate-100 dark:border-white/5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none overflow-hidden">
@@ -2048,13 +2167,32 @@ export default function GroupWorkspace() {
                                   const file = e.target.files?.[0];
                                   if (file) {
                                     try {
-                                      await uploadGroupPhoto(group.id, file);
-                                      toast.success('Group photo updated');
-                                      refetch();
+                                      const { url, error } = await uploadGroupPhoto(group.id, file);
+                                      if (error) {
+                                        toast({
+                                          title: 'Upload failed',
+                                          description: error,
+                                          variant: 'destructive',
+                                        });
+                                        return;
+                                      }
+                                      if (url) {
+                                        toast({
+                                          title: 'Photo updated',
+                                          description: 'Group photo has been updated successfully.',
+                                        });
+                                        fetchGroupData();
+                                      }
                                     } catch (error) {
-                                      toast.error('Failed to upload photo');
+                                      toast({
+                                        title: 'Error',
+                                        description: 'Failed to upload photo',
+                                        variant: 'destructive',
+                                      });
                                     }
                                   }
+                                  // Reset the input
+                                  e.target.value = '';
                                 }}
                               />
                             </label>
@@ -2063,11 +2201,26 @@ export default function GroupWorkspace() {
                                 className="p-2 bg-white/20 rounded-full hover:bg-red-500/50 transition-colors"
                                 onClick={async () => {
                                   try {
-                                    await deleteGroupPhoto(group.id, group.photo_url!);
-                                    toast.success('Group photo removed');
-                                    refetch();
+                                    const { error } = await deleteGroupPhoto(group.id, group.photo_url!);
+                                    if (error) {
+                                      toast({
+                                        title: 'Delete failed',
+                                        description: error,
+                                        variant: 'destructive',
+                                      });
+                                      return;
+                                    }
+                                    toast({
+                                      title: 'Photo removed',
+                                      description: 'Group photo has been deleted.',
+                                    });
+                                    fetchGroupData();
                                   } catch (error) {
-                                    toast.error('Failed to remove photo');
+                                    toast({
+                                      title: 'Error',
+                                      description: 'Failed to remove photo',
+                                      variant: 'destructive',
+                                    });
                                   }
                                 }}
                               >
@@ -2211,17 +2364,6 @@ export default function GroupWorkspace() {
           </AnimatePresence>
         </div>
       </main>
-
-      {/* Right Sidebar - Activity Feed - 320px */}
-      <aside className="w-[320px] bg-white dark:bg-slate-900/40 dark:backdrop-blur-xl border-l border-slate-100 dark:border-white/5 flex flex-col">
-        <div className="p-6 border-b border-slate-100 dark:border-white/5">
-          <h3 className="font-semibold text-slate-900 dark:text-white">Activity</h3>
-          <p className="text-xs text-slate-500 dark:text-slate-400">Recent group activity</p>
-        </div>
-        <div className="flex-1 overflow-y-auto p-4">
-          <ActivityFeed groupId={id || ''} limit={20} showHeader={false} />
-        </div>
-      </aside>
 
       {/* Start Cycle Dialog */}
       <Dialog open={cycleDialogOpen} onOpenChange={setCycleDialogOpen}>
