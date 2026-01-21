@@ -110,6 +110,12 @@ export async function uploadGroupPhoto(groupId: string, file: File): Promise<Upl
       .from(STORAGE_BUCKETS.GROUP_PHOTOS)
       .getPublicUrl(fileName);
 
+    // Update group record with new photo URL
+    await supabase
+      .from('groups')
+      .update({ photo_url: publicUrl })
+      .eq('id', groupId);
+
     return { url: publicUrl, error: null };
   } catch (error) {
     console.error('Group photo upload error:', error);
@@ -173,5 +179,36 @@ export async function deleteOldGroupPhotos(groupId: string, keepUrl?: string): P
     }
   } catch (error) {
     console.error('Error deleting old group photos:', error);
+  }
+}
+
+/**
+ * Delete a specific group photo by URL
+ */
+export async function deleteGroupPhoto(groupId: string, photoUrl: string): Promise<{ error: string | null }> {
+  try {
+    // Extract file path from URL
+    const urlParts = photoUrl.split('/');
+    const fileName = urlParts.slice(-2).join('/'); // groupId/timestamp.ext
+    
+    const { error } = await supabase.storage
+      .from(STORAGE_BUCKETS.GROUP_PHOTOS)
+      .remove([fileName]);
+
+    if (error) {
+      console.error('Delete error:', error);
+      return { error: error.message };
+    }
+
+    // Update group record to remove photo_url
+    await supabase
+      .from('groups')
+      .update({ photo_url: null })
+      .eq('id', groupId);
+
+    return { error: null };
+  } catch (error) {
+    console.error('Error deleting group photo:', error);
+    return { error: 'Failed to delete group photo' };
   }
 }

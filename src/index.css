@@ -74,30 +74,30 @@
   }
 
   .dark {
-    /* Background & Foreground */
-    --background: 222 47% 8%;
+    /* Background & Foreground - Deep Slate/Black */
+    --background: 222 84% 5%;
     --foreground: 210 20% 98%;
 
-    /* Cards & Popovers */
+    /* Cards & Popovers - Glassmorphism base */
     --card: 222 47% 11%;
     --card-foreground: 210 20% 98%;
     --popover: 222 47% 11%;
     --popover-foreground: 210 20% 98%;
 
-    /* Primary - Trust Green */
-    --primary: 142 60% 45%;
+    /* Primary - Amber/Orange for dark mode */
+    --primary: 38 92% 50%;
     --primary-foreground: 0 0% 100%;
 
     /* Secondary */
-    --secondary: 222 30% 18%;
+    --secondary: 222 30% 14%;
     --secondary-foreground: 210 20% 90%;
 
     /* Muted */
-    --muted: 222 30% 18%;
-    --muted-foreground: 220 10% 60%;
+    --muted: 222 30% 14%;
+    --muted-foreground: 220 10% 55%;
 
-    /* Accent */
-    --accent: 217 91% 55%;
+    /* Accent - Amber glow */
+    --accent: 25 95% 53%;
     --accent-foreground: 0 0% 100%;
 
     /* Destructive */
@@ -108,29 +108,29 @@
     --warning: 40 96% 55%;
     --warning-foreground: 0 0% 10%;
 
-    /* Success */
+    /* Success - Keep green for verified/success states */
     --success: 142 72% 40%;
     --success-foreground: 0 0% 100%;
 
     /* Borders & Inputs */
-    --border: 222 30% 20%;
-    --input: 222 30% 20%;
-    --ring: 142 60% 45%;
+    --border: 222 30% 18%;
+    --input: 222 30% 18%;
+    --ring: 38 92% 50%;
 
-    /* Sidebar */
-    --sidebar-background: 222 47% 10%;
+    /* Sidebar - Orange active states */
+    --sidebar-background: 222 84% 5%;
     --sidebar-foreground: 210 20% 90%;
-    --sidebar-primary: 142 60% 45%;
+    --sidebar-primary: 38 92% 50%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 222 30% 16%;
+    --sidebar-accent: 222 30% 12%;
     --sidebar-accent-foreground: 210 20% 90%;
-    --sidebar-border: 222 30% 20%;
-    --sidebar-ring: 142 60% 45%;
+    --sidebar-border: 222 30% 15%;
+    --sidebar-ring: 38 92% 50%;
 
     /* Chart Colors */
     --chart-1: 142 60% 45%;
-    --chart-2: 217 91% 55%;
-    --chart-3: 40 96% 55%;
+    --chart-2: 38 92% 50%;
+    --chart-3: 25 95% 53%;
     --chart-4: 0 72% 45%;
     --chart-5: 220 14% 50%;
   }
@@ -158,7 +158,39 @@
 
   /* Glass morphism effect */
   .glass {
-    @apply bg-white/80 dark:bg-card/80 backdrop-blur-md;
+    @apply bg-white/80 dark:bg-slate-900/40 backdrop-blur-md dark:backdrop-blur-xl;
+  }
+
+  /* Dark mode glassmorphism cards */
+  .glass-card {
+    @apply bg-white dark:bg-slate-900/40 dark:backdrop-blur-xl border border-slate-100 dark:border-white/5;
+  }
+
+  /* Orange glow effect for dark mode primary actions */
+  .glow-orange {
+    @apply dark:shadow-[0_0_20px_rgba(245,158,11,0.25)];
+  }
+
+  .glow-orange-lg {
+    @apply dark:shadow-[0_0_30px_rgba(245,158,11,0.3)];
+  }
+
+  /* Primary button with orange glow in dark mode */
+  .btn-primary-glow {
+    @apply bg-green-500 hover:bg-green-600 text-white;
+    @apply dark:bg-amber-500 dark:hover:bg-amber-600 dark:shadow-[0_0_20px_rgba(245,158,11,0.25)] dark:hover:shadow-[0_0_25px_rgba(245,158,11,0.35)];
+    @apply transition-all duration-300;
+  }
+
+  /* Active nav item with orange glow in dark mode */
+  .nav-active-glow {
+    @apply bg-green-500 text-white shadow-lg shadow-green-500/25;
+    @apply dark:bg-amber-500 dark:shadow-[0_0_15px_rgba(245,158,11,0.3)];
+  }
+
+  /* Dark mode deep background */
+  .bg-deep-dark {
+    @apply dark:bg-[#020617];
   }
 
   /* Gradient backgrounds */

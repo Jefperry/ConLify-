@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, type Variants } from 'framer-motion';
+import type { LucideIcon } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,16 +21,16 @@ import {
 } from 'lucide-react';
 
 // Animation variants
-const fadeInUp = {
+const fadeInUp: Variants = {
   hidden: { opacity: 0, y: 50 },
   visible: { 
     opacity: 1, 
     y: 0,
-    transition: { duration: 0.6, ease: 'easeOut' }
+    transition: { duration: 0.6, ease: 'easeOut' as const }
   }
 };
 
-const staggerContainer = {
+const staggerContainer: Variants = {
   hidden: { opacity: 0 },
   visible: {
     opacity: 1,
@@ -50,33 +51,33 @@ export default function IndexPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#F8FAFC]">
+    <div className="min-h-screen flex flex-col bg-[#F8FAFC] dark:bg-[#020617]">
       {/* Header */}
-      <header className="bg-[#F8FAFC] sticky top-0 z-50">
+      <header className="bg-[#F8FAFC] dark:bg-[#020617]/80 dark:backdrop-blur-xl dark:border-b dark:border-white/5 sticky top-0 z-50">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-5 flex justify-between items-center">
           <Link to="/" className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-green-500 flex items-center justify-center">
+            <div className="w-9 h-9 rounded-xl bg-green-500 dark:bg-amber-500 flex items-center justify-center">
               <PiggyBank className="h-5 w-5 text-white" strokeWidth={1.5} />
             </div>
-            <span className="text-xl font-bold text-black">ConLify</span>
+            <span className="text-xl font-bold text-black dark:text-white">ConLify</span>
           </Link>
           
           <nav className="hidden md:flex items-center gap-8">
-            <a href="#features" className="text-slate-600 hover:text-black transition-colors text-sm font-medium">Features</a>
-            <a href="#how-it-works" className="text-slate-600 hover:text-black transition-colors text-sm font-medium">How it Works</a>
+            <a href="#features" className="text-slate-600 dark:text-slate-400 hover:text-black dark:hover:text-white transition-colors text-sm font-medium">Features</a>
+            <a href="#how-it-works" className="text-slate-600 dark:text-slate-400 hover:text-black dark:hover:text-white transition-colors text-sm font-medium">How it Works</a>
           </nav>
 
           <div className="flex items-center gap-3">
             {loading ? null : user ? (
-              <Button asChild className="bg-green-500 hover:bg-green-600 text-white rounded-full px-6">
+              <Button asChild className="bg-green-500 hover:bg-green-600 dark:bg-amber-500 dark:hover:bg-amber-600 dark:shadow-[0_0_20px_rgba(245,158,11,0.25)] text-white rounded-full px-6 transition-all duration-300">
                 <Link to="/dashboard">Dashboard</Link>
               </Button>
             ) : (
               <div className="flex gap-2">
-                <Button variant="ghost" asChild className="text-slate-600 hover:text-black">
+                <Button variant="ghost" asChild className="text-slate-600 dark:text-slate-400 hover:text-black dark:hover:text-white">
                   <Link to="/login">Login</Link>
                 </Button>
-                <Button asChild className="bg-green-500 hover:bg-green-600 text-white rounded-full px-6">
+                <Button asChild className="bg-green-500 hover:bg-green-600 dark:bg-amber-500 dark:hover:bg-amber-600 dark:shadow-[0_0_20px_rgba(245,158,11,0.25)] text-white rounded-full px-6 transition-all duration-300">
                   <Link to="/signup">Sign Up</Link>
                 </Button>
               </div>
@@ -89,7 +90,7 @@ export default function IndexPage() {
         {/* Hero Section - Asymmetric Layout */}
         <section className="relative overflow-hidden pt-16 pb-24 lg:pt-24 lg:pb-32">
           {/* Subtle background gradient */}
-          <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-gradient-to-bl from-green-50 to-transparent rounded-full blur-3xl -z-10" />
+          <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-gradient-to-bl from-green-50 dark:from-amber-500/10 to-transparent rounded-full blur-3xl -z-10" />
           
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
             <div className="grid lg:grid-cols-2 gap-12 lg:gap-8 items-center">
@@ -100,12 +101,12 @@ export default function IndexPage() {
                 variants={fadeInUp}
                 className="max-w-xl"
               >
-                <h1 className="text-4xl sm:text-5xl lg:text-[56px] font-bold text-black leading-[1.1] tracking-tight mb-6">
+                <h1 className="text-4xl sm:text-5xl lg:text-[56px] font-bold text-black dark:text-white leading-[1.1] tracking-tight mb-6">
                   Keep your savings group on track{' '}
-                  <span className="text-green-500">automatically.</span>
+                  <span className="text-green-500 dark:text-amber-500">automatically.</span>
                 </h1>
                 
-                <p className="text-lg text-slate-600 leading-relaxed mb-10">
+                <p className="text-lg text-slate-600 dark:text-slate-400 leading-relaxed mb-10">
                   Manage contributions, send reminders, and keep everyone accountable 
                   with simple tools designed for savings circles and ROSCAs.
                 </p>
@@ -118,11 +119,11 @@ export default function IndexPage() {
                       placeholder="Enter your email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      className="h-14 pl-5 pr-36 rounded-full border-slate-200 bg-white text-black placeholder:text-slate-400 focus-visible:ring-green-500"
+                      className="h-14 pl-5 pr-36 rounded-full border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900/50 text-black dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus-visible:ring-green-500 dark:focus-visible:ring-amber-500"
                     />
                     <Button 
                       type="submit"
-                      className="absolute right-1.5 top-1/2 -translate-y-1/2 bg-green-500 hover:bg-green-600 text-white rounded-full px-6 h-11"
+                      className="absolute right-1.5 top-1/2 -translate-y-1/2 bg-green-500 hover:bg-green-600 dark:bg-amber-500 dark:hover:bg-amber-600 dark:shadow-[0_0_20px_rgba(245,158,11,0.25)] text-white rounded-full px-6 h-11 transition-all duration-300"
                     >
                       Get Started
                       <ArrowRight className="ml-2 h-4 w-4" />
@@ -131,13 +132,13 @@ export default function IndexPage() {
                 </form>
 
                 {/* Trust indicators */}
-                <div className="flex items-center gap-6 text-sm text-slate-500">
+                <div className="flex items-center gap-6 text-sm text-slate-500 dark:text-slate-400">
                   <div className="flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-green-500" strokeWidth={1.5} />
+                    <CheckCircle className="h-4 w-4 text-green-500 dark:text-green-400" strokeWidth={1.5} />
                     <span>Free to use</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-green-500" strokeWidth={1.5} />
+                    <CheckCircle className="h-4 w-4 text-green-500 dark:text-green-400" strokeWidth={1.5} />
                     <span>No credit card</span>
                   </div>
                 </div>
@@ -157,7 +158,7 @@ export default function IndexPage() {
         </section>
 
         {/* Features Section */}
-        <section id="features" className="py-24 lg:py-32 bg-white">
+        <section id="features" className="py-24 lg:py-32 bg-white dark:bg-slate-900/30">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
             <motion.div
               initial="hidden"
@@ -166,13 +167,13 @@ export default function IndexPage() {
               variants={fadeInUp}
               className="max-w-3xl mb-16"
             >
-              <span className="text-green-500 text-sm font-semibold uppercase tracking-wider mb-4 block">
+              <span className="text-green-500 dark:text-amber-500 text-sm font-semibold uppercase tracking-wider mb-4 block">
                 Features
               </span>
-              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-black leading-tight mb-4">
+              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-black dark:text-white leading-tight mb-4">
                 Experience that grows with your group.
               </h2>
-              <p className="text-lg text-slate-600 leading-relaxed">
+              <p className="text-lg text-slate-600 dark:text-slate-400 leading-relaxed">
                 Design a savings system that works for your community with intuitive tools and streamlined contribution management.
               </p>
             </motion.div>
@@ -219,7 +220,7 @@ export default function IndexPage() {
         </section>
 
         {/* How It Works Section */}
-        <section id="how-it-works" className="py-24 lg:py-32 bg-[#F8FAFC]">
+        <section id="how-it-works" className="py-24 lg:py-32 bg-[#F8FAFC] dark:bg-[#020617]">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
             <motion.div
               initial="hidden"
@@ -228,13 +229,13 @@ export default function IndexPage() {
               variants={fadeInUp}
               className="text-center mb-16"
             >
-              <span className="text-green-500 text-sm font-semibold uppercase tracking-wider mb-4 block">
+              <span className="text-green-500 dark:text-amber-500 text-sm font-semibold uppercase tracking-wider mb-4 block">
                 How It Works
               </span>
-              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-black mb-4">
+              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-black dark:text-white mb-4">
                 Get started in minutes
               </h2>
-              <p className="text-lg text-slate-600 max-w-2xl mx-auto">
+              <p className="text-lg text-slate-600 dark:text-slate-400 max-w-2xl mx-auto">
                 Setting up your savings group has never been easier.
               </p>
             </motion.div>
@@ -291,7 +292,7 @@ export default function IndexPage() {
                 <Button 
                   size="lg"
                   asChild 
-                  className="bg-green-500 hover:bg-green-600 text-white rounded-full px-8 h-12 text-base"
+                  className="bg-green-500 hover:bg-green-600 dark:bg-amber-500 dark:hover:bg-amber-600 dark:shadow-[0_0_25px_rgba(245,158,11,0.35)] text-white rounded-full px-8 h-12 text-base transition-all duration-300"
                 >
                   <Link to="/signup">
                     Get Started Now
@@ -305,61 +306,61 @@ export default function IndexPage() {
       </main>
 
       {/* Footer - Multi-column */}
-      <footer className="bg-[#F8FAFC] border-t border-slate-100 py-16">
+      <footer className="bg-[#F8FAFC] dark:bg-slate-900/50 border-t border-slate-100 dark:border-white/5 py-16">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-2 md:grid-cols-5 gap-8 lg:gap-12 mb-12">
             {/* Logo Column */}
             <div className="col-span-2 md:col-span-1">
               <Link to="/" className="flex items-center gap-2.5 mb-4">
-                <div className="w-9 h-9 rounded-xl bg-green-500 flex items-center justify-center">
+                <div className="w-9 h-9 rounded-xl bg-green-500 dark:bg-amber-500 flex items-center justify-center">
                   <PiggyBank className="h-5 w-5 text-white" strokeWidth={1.5} />
                 </div>
-                <span className="text-xl font-bold text-black">ConLify</span>
+                <span className="text-xl font-bold text-black dark:text-white">ConLify</span>
               </Link>
-              <p className="text-sm text-slate-500 leading-relaxed">
+              <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
                 Simple tools for savings groups.
               </p>
             </div>
 
             {/* Product Column */}
             <div>
-              <h4 className="font-semibold text-black mb-4 text-sm">Product</h4>
-              <ul className="space-y-3 text-sm text-slate-500">
-                <li><a href="#features" className="hover:text-green-500 transition-colors">Features</a></li>
-                <li><a href="#how-it-works" className="hover:text-green-500 transition-colors">How it Works</a></li>
-                <li><Link to="/signup" className="hover:text-green-500 transition-colors">Get Started</Link></li>
+              <h4 className="font-semibold text-black dark:text-white mb-4 text-sm">Product</h4>
+              <ul className="space-y-3 text-sm text-slate-500 dark:text-slate-400">
+                <li><a href="#features" className="hover:text-green-500 dark:hover:text-amber-500 transition-colors">Features</a></li>
+                <li><a href="#how-it-works" className="hover:text-green-500 dark:hover:text-amber-500 transition-colors">How it Works</a></li>
+                <li><Link to="/signup" className="hover:text-green-500 dark:hover:text-amber-500 transition-colors">Get Started</Link></li>
               </ul>
             </div>
 
             {/* Company Column */}
             <div>
-              <h4 className="font-semibold text-black mb-4 text-sm">Company</h4>
-              <ul className="space-y-3 text-sm text-slate-500">
-                <li><a href="#" className="hover:text-green-500 transition-colors">About Us</a></li>
-                <li><a href="#" className="hover:text-green-500 transition-colors">Contact</a></li>
+              <h4 className="font-semibold text-black dark:text-white mb-4 text-sm">Company</h4>
+              <ul className="space-y-3 text-sm text-slate-500 dark:text-slate-400">
+                <li><a href="#" className="hover:text-green-500 dark:hover:text-amber-500 transition-colors">About Us</a></li>
+                <li><a href="#" className="hover:text-green-500 dark:hover:text-amber-500 transition-colors">Contact</a></li>
               </ul>
             </div>
 
             {/* Legal Column */}
             <div>
-              <h4 className="font-semibold text-black mb-4 text-sm">Legal</h4>
-              <ul className="space-y-3 text-sm text-slate-500">
-                <li><a href="#" className="hover:text-green-500 transition-colors">Privacy</a></li>
-                <li><a href="#" className="hover:text-green-500 transition-colors">Terms</a></li>
+              <h4 className="font-semibold text-black dark:text-white mb-4 text-sm">Legal</h4>
+              <ul className="space-y-3 text-sm text-slate-500 dark:text-slate-400">
+                <li><a href="#" className="hover:text-green-500 dark:hover:text-amber-500 transition-colors">Privacy</a></li>
+                <li><a href="#" className="hover:text-green-500 dark:hover:text-amber-500 transition-colors">Terms</a></li>
               </ul>
             </div>
 
             {/* Social Column */}
             <div>
-              <h4 className="font-semibold text-black mb-4 text-sm">Follow us</h4>
+              <h4 className="font-semibold text-black dark:text-white mb-4 text-sm">Follow us</h4>
               <div className="flex items-center gap-4">
-                <a href="#" className="text-slate-400 hover:text-green-500 transition-colors">
+                <a href="#" className="text-slate-400 hover:text-green-500 dark:hover:text-amber-500 transition-colors">
                   <Twitter className="h-5 w-5" strokeWidth={1.5} />
                 </a>
-                <a href="#" className="text-slate-400 hover:text-green-500 transition-colors">
+                <a href="#" className="text-slate-400 hover:text-green-500 dark:hover:text-amber-500 transition-colors">
                   <Linkedin className="h-5 w-5" strokeWidth={1.5} />
                 </a>
-                <a href="#" className="text-slate-400 hover:text-green-500 transition-colors">
+                <a href="#" className="text-slate-400 hover:text-green-500 dark:hover:text-amber-500 transition-colors">
                   <Github className="h-5 w-5" strokeWidth={1.5} />
                 </a>
               </div>
@@ -367,8 +368,8 @@ export default function IndexPage() {
           </div>
 
           {/* Bottom Bar */}
-          <div className="pt-8 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <p className="text-sm text-slate-500">
+          <div className="pt-8 border-t border-slate-100 dark:border-white/5 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <p className="text-sm text-slate-500 dark:text-slate-400">
               © ConLify 2026. All Rights Reserved.
             </p>
             <p className="text-xs text-slate-400 max-w-md text-center sm:text-right">
@@ -387,17 +388,17 @@ function FeatureCard({
   title, 
   description
 }: { 
-  icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
+  icon: LucideIcon;
   title: string; 
   description: string;
 }) {
   return (
     <motion.div variants={fadeInUp} className="group">
-      <div className="w-12 h-12 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center mb-5 group-hover:bg-green-50 group-hover:border-green-100 transition-colors">
-        <Icon className="h-6 w-6 text-slate-700 group-hover:text-green-600 transition-colors" strokeWidth={1.5} />
+      <div className="w-12 h-12 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-white/5 flex items-center justify-center mb-5 group-hover:bg-green-50 dark:group-hover:bg-amber-500/10 group-hover:border-green-100 dark:group-hover:border-amber-500/20 transition-colors">
+        <Icon className="h-6 w-6 text-slate-700 dark:text-slate-300 group-hover:text-green-600 dark:group-hover:text-amber-500 transition-colors" strokeWidth={1.5} />
       </div>
-      <h3 className="text-lg font-semibold text-black mb-2">{title}</h3>
-      <p className="text-slate-600 leading-relaxed">{description}</p>
+      <h3 className="text-lg font-semibold text-black dark:text-white mb-2">{title}</h3>
+      <p className="text-slate-600 dark:text-slate-400 leading-relaxed">{description}</p>
     </motion.div>
   );
 }
@@ -414,9 +415,9 @@ function StepCard({
 }) {
   return (
     <motion.div variants={fadeInUp} className="text-center">
-      <div className="text-6xl font-bold text-green-500/20 mb-4">{number}</div>
-      <h3 className="text-xl font-semibold text-black mb-3">{title}</h3>
-      <p className="text-slate-600 leading-relaxed">{description}</p>
+      <div className="text-6xl font-bold text-green-500/20 dark:text-amber-500/20 mb-4">{number}</div>
+      <h3 className="text-xl font-semibold text-black dark:text-white mb-3">{title}</h3>
+      <p className="text-slate-600 dark:text-slate-400 leading-relaxed">{description}</p>
     </motion.div>
   );
 }

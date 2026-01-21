@@ -12,8 +12,7 @@ import Dashboard from "./pages/Dashboard";
 import Profile from "./pages/Profile";
 import CreateGroup from "./pages/CreateGroup";
 import JoinGroup from "./pages/JoinGroup";
-import GroupDetail from "./pages/GroupDetail";
-import GroupSettings from "./pages/GroupSettings";
+import GroupWorkspace from "./pages/GroupWorkspace";
 import Invoice from "./pages/Invoice";
 import NotFound from "./pages/NotFound";
 
@@ -35,8 +34,7 @@ const App = () => (
               <Route path="/profile" element={<Profile />} />
               <Route path="/groups/create" element={<CreateGroup />} />
               <Route path="/groups/join" element={<JoinGroup />} />
-              <Route path="/groups/:id" element={<GroupDetail />} />
-              <Route path="/groups/:id/settings" element={<GroupSettings />} />
+              <Route path="/groups/:id" element={<GroupWorkspace />} />
               <Route path="/groups/:groupId/invoice/:cycleId" element={<Invoice />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />

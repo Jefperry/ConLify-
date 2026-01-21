@@ -393,13 +393,13 @@ export default function DashboardPage() {
   const primaryGroup = groups.find(g => g.cycleStatus?.hasCycle) || groups[0];
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background dark:bg-[#020617]">
       {/* Header */}
-      <header className="border-b border-border/50 bg-background/80 backdrop-blur-md sticky top-0 z-50">
+      <header className="border-b border-border/50 dark:border-white/5 bg-background/80 dark:bg-slate-900/60 backdrop-blur-xl sticky top-0 z-50">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
           <div className="flex items-center gap-4">
             <Link to="/" className="flex items-center gap-2">
-              <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center">
+              <div className="w-9 h-9 rounded-xl bg-primary dark:bg-amber-500 flex items-center justify-center">
                 <PiggyBank className="h-5 w-5 text-primary-foreground" />
               </div>
               <span className="text-xl font-bold text-foreground hidden sm:inline">ConLify</span>
@@ -521,7 +521,7 @@ export default function DashboardPage() {
                       </p>
                       <Button 
                         onClick={() => navigate('/groups/create')}
-                        className="bg-green-500 hover:bg-green-600 text-white rounded-full px-8 py-5 text-base"
+                        className="bg-green-500 hover:bg-green-600 dark:bg-amber-500 dark:hover:bg-amber-600 dark:shadow-[0_0_20px_rgba(245,158,11,0.25)] text-white rounded-full px-8 py-5 text-base transition-all duration-300"
                       >
                         Create Group
                         <ArrowRight className="w-4 h-4 ml-2" strokeWidth={1.5} />
@@ -745,8 +745,8 @@ function GroupStatusCard({
 
   return (
     <Card className={cn(
-      'card-elevated overflow-hidden transition-all hover:shadow-soft-lg',
-      needsAttention && 'border-amber-500/30'
+      'card-elevated overflow-hidden transition-all hover:shadow-soft-lg dark:bg-slate-900/40 dark:backdrop-blur-xl dark:border-white/5 dark:hover:bg-slate-900/50',
+      needsAttention && 'border-amber-500/30 dark:border-amber-500/20'
     )}>
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-4">
